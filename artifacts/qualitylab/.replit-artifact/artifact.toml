@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "QualityLab"
+description = "Plataforma interactiva para un diplomado de calidad y mejora continua. Guía a los participantes por misiones prácticas de diagnóstico, KPI, Pareto, causa raíz, Hoshin Kanri, control estadístico y auditoría, con gamificación por equipos."
+version = "1.0.0"
+id = "artifacts/qualitylab"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18778
+
+[services.development]
+run = "pnpm --filter @workspace/qualitylab run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/qualitylab", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/qualitylab/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18778"
+BASE_PATH = "/"
