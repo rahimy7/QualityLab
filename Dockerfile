@@ -24,8 +24,7 @@ COPY scripts/package.json ./scripts/
 
 # Install all dependencies
 # --no-frozen-lockfile: resolve Linux-specific native pkgs missing from macOS lockfile
-# --config.strictDepBuilds=false: bypass pnpm 11's "approve-builds" gate for esbuild
-RUN pnpm install --no-frozen-lockfile --config.strictDepBuilds=false
+RUN pnpm install --no-frozen-lockfile
 
 # Copy full source
 COPY . .

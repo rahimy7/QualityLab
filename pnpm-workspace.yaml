@@ -68,6 +68,10 @@ catalog:
 
 autoInstallPeers: false
 
+# pnpm 11 fails install when a dep has an unapproved build script, even if
+# it's listed in `onlyBuiltDependencies` (esbuild). Disable the strict gate.
+strictDepBuilds: false
+
 onlyBuiltDependencies:
   - '@swc/core'
   - esbuild
