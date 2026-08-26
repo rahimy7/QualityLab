@@ -19,9 +19,6 @@ COPY lib/api-zod/package.json ./lib/api-zod/
 COPY lib/db/package.json ./lib/db/
 COPY scripts/package.json ./scripts/
 
-# Satisfy the preinstall user-agent check (pnpm doesn't propagate this in Docker)
-ENV npm_config_user_agent="pnpm/11.3.0 npm/? node/v24.0.0 linux x64"
-
 # Install all dependencies
 RUN pnpm install --frozen-lockfile
 
