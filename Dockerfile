@@ -1,7 +1,8 @@
 # ---- Build stage ----
 FROM node:24-alpine AS builder
 
-RUN corepack enable && corepack prepare pnpm@9 --activate
+# Install pnpm directly — corepack proxy doesn't set npm_config_user_agent correctly
+RUN npm install -g pnpm@11.3.0 --no-fund --no-audit
 
 WORKDIR /app
 
