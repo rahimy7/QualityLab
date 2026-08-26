@@ -41,8 +41,9 @@ const staticDir =
 
 if (existsSync(staticDir)) {
   app.use(express.static(staticDir));
-  // SPA fallback: send index.html for any non-API route
-  app.get("*", (_req, res) => {
+  // SPA fallback: send index.html for any non-API GET request
+  app.use((req, res, next) => {
+    if (req.method !== "GET" || req.path.startsWith("/api")) return next();
     res.sendFile(path.join(staticDir, "index.html"));
   });
 }
