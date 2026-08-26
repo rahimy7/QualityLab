@@ -23,7 +23,9 @@ COPY lib/db/package.json ./lib/db/
 COPY scripts/package.json ./scripts/
 
 # Install all dependencies
-RUN pnpm install --frozen-lockfile
+# --no-frozen-lockfile allows pnpm to resolve Linux-specific native packages
+# (e.g. @esbuild/linux-x64) that aren't in a lockfile generated on macOS.
+RUN pnpm install --no-frozen-lockfile
 
 # Copy full source
 COPY . .
