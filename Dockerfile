@@ -1,5 +1,5 @@
 # ---- Build stage ----
-FROM node:24-alpine AS builder
+FROM node:24-slim AS builder
 
 # Install pnpm directly — corepack proxy doesn't set npm_config_user_agent correctly
 RUN npm install -g pnpm@11.3.0 --no-fund --no-audit
@@ -36,7 +36,7 @@ RUN BASE_PATH=/ pnpm --filter @workspace/qualitylab run build
 RUN pnpm --filter @workspace/api-server run build
 
 # ---- Runtime stage ----
-FROM node:24-alpine AS runner
+FROM node:24-slim AS runner
 
 WORKDIR /app
 
