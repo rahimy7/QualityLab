@@ -7,25 +7,14 @@ import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
 
 const rawPort = process.env.PORT;
 
-if (!rawPort) {
-  throw new Error(
-    'PORT environment variable is required but was not provided.',
-  );
-}
+// PORT is only required for the dev server, not for production builds.
+const port = rawPort ? Number(rawPort) : 3000;
 
-const port = Number(rawPort);
-
-if (Number.isNaN(port) || port <= 0) {
+if (rawPort && (Number.isNaN(port) || port <= 0)) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const basePath = process.env.BASE_PATH;
-
-if (!basePath) {
-  throw new Error(
-    'BASE_PATH environment variable is required but was not provided.',
-  );
-}
+const basePath = process.env.BASE_PATH ?? '/';
 
 export default defineConfig({
   base: basePath,
@@ -72,10 +61,24 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    // En producción el router de la plataforma manda /api al servidor de API;
+    // en local hay que hacerlo aquí para que el cliente generado funcione igual.
+    proxy: {
+      '/api': {
+        target: process.env.API_URL ?? 'http://127.0.0.1:8080',
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     port,
     host: '0.0.0.0',
     allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: process.env.API_URL ?? 'http://127.0.0.1:8080',
+        changeOrigin: true,
+      },
+    },
   },
 });

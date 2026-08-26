@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
+  version: 0.2.0
   description: API specification
 servers:
   - url: /api
@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: sesiones
+    description: Sesiones de clase y participantes
+  - name: avance
+    description: Avance y resultados de cada participante
 paths:
   /healthz:
     get:
@@ -24,7 +28,168 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /sesiones:
+    post:
+      operationId: crearSesion
+      tags: [sesiones]
+      summary: Crear una sesión de clase
+      description: El facilitador crea la sesión y obtiene el código que comparte con el aula.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CrearSesion"
+      responses:
+        "201":
+          description: Sesión creada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sesion"
+        "400":
+          $ref: "#/components/responses/SolicitudInvalida"
+
+  /sesiones/{codigo}:
+    get:
+      operationId: obtenerSesion
+      tags: [sesiones]
+      summary: Consultar una sesión por su código
+      parameters:
+        - $ref: "#/components/parameters/Codigo"
+      responses:
+        "200":
+          description: Sesión encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sesion"
+        "404":
+          $ref: "#/components/responses/NoEncontrado"
+
+  /sesiones/{codigo}/participantes:
+    post:
+      operationId: unirseSesion
+      tags: [sesiones]
+      summary: Unirse a una sesión o recuperar el avance previo
+      description: >-
+        Si el dispositivo ya se había unido, devuelve el mismo participante con
+        su avance guardado. Si el nombre coincide con alguien de la sesión desde
+        otro dispositivo, reasigna ese participante al nuevo aparato.
+      parameters:
+        - $ref: "#/components/parameters/Codigo"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Unirse"
+      responses:
+        "200":
+          description: Participante inscrito
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Inscripcion"
+        "400":
+          $ref: "#/components/responses/SolicitudInvalida"
+        "404":
+          $ref: "#/components/responses/NoEncontrado"
+
+  /sesiones/{codigo}/tablero:
+    get:
+      operationId: obtenerTablero
+      tags: [sesiones]
+      summary: Tablero en vivo del facilitador
+      description: Avance de cada participante y desempeño del aula pregunta por pregunta.
+      parameters:
+        - $ref: "#/components/parameters/Codigo"
+      responses:
+        "200":
+          description: Tablero de la sesión
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tablero"
+        "404":
+          $ref: "#/components/responses/NoEncontrado"
+
+  /participantes/{participanteId}/avance:
+    get:
+      operationId: obtenerAvance
+      tags: [avance]
+      summary: Leer el avance guardado de un participante
+      parameters:
+        - $ref: "#/components/parameters/ParticipanteId"
+      responses:
+        "200":
+          description: Avance del participante
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Avance"
+        "404":
+          $ref: "#/components/responses/NoEncontrado"
+    put:
+      operationId: guardarAvance
+      tags: [avance]
+      summary: Guardar el avance de un participante
+      description: Reemplaza la instantánea del participante y registra las respuestas nuevas.
+      parameters:
+        - $ref: "#/components/parameters/ParticipanteId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuardarAvance"
+      responses:
+        "200":
+          description: Avance guardado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Avance"
+        "400":
+          $ref: "#/components/responses/SolicitudInvalida"
+        "404":
+          $ref: "#/components/responses/NoEncontrado"
+
 components:
+  parameters:
+    Codigo:
+      name: codigo
+      in: path
+      required: true
+      description: Código corto de la sesión
+      schema:
+        type: string
+        minLength: 4
+        maxLength: 12
+    ParticipanteId:
+      name: participanteId
+      in: path
+      required: true
+      description: Identificador del participante
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    SolicitudInvalida:
+      description: La solicitud no cumple el contrato
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NoEncontrado:
+      description: No encontrado
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +199,282 @@ components:
       required:
         - status
 
+    Error:
+      type: object
+      properties:
+        mensaje:
+          type: string
+      required:
+        - mensaje
+
+    CrearSesion:
+      type: object
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 120
+        facilitador:
+          type: string
+          maxLength: 120
+      required:
+        - nombre
+
+    Sesion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        codigo:
+          type: string
+        nombre:
+          type: string
+        facilitador:
+          type: string
+          nullable: true
+        activa:
+          type: boolean
+        creadaEn:
+          type: string
+          format: date-time
+      required:
+        - id
+        - codigo
+        - nombre
+        - activa
+        - creadaEn
+
+    Unirse:
+      type: object
+      properties:
+        dispositivoId:
+          type: string
+          minLength: 8
+          maxLength: 64
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 120
+        equipoId:
+          type: string
+          minLength: 1
+          maxLength: 60
+      required:
+        - dispositivoId
+        - nombre
+        - equipoId
+
+    Participante:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sesionId:
+          type: string
+          format: uuid
+        nombre:
+          type: string
+        equipoId:
+          type: string
+        creadoEn:
+          type: string
+          format: date-time
+      required:
+        - id
+        - sesionId
+        - nombre
+        - equipoId
+        - creadoEn
+
+    Inscripcion:
+      type: object
+      properties:
+        sesion:
+          $ref: "#/components/schemas/Sesion"
+        participante:
+          $ref: "#/components/schemas/Participante"
+        avance:
+          oneOf:
+            - $ref: "#/components/schemas/Avance"
+            - type: "null"
+          description: Avance previo del participante, o null si es su primera vez.
+      required:
+        - sesion
+        - participante
+
+    RespuestaEjercicio:
+      type: object
+      properties:
+        preguntaId:
+          type: string
+        opcionId:
+          type: string
+        correcta:
+          type: boolean
+      required:
+        - preguntaId
+        - opcionId
+        - correcta
+
+    GuardarAvance:
+      type: object
+      properties:
+        puntos:
+          type: integer
+          minimum: 0
+        misiones:
+          type: array
+          items:
+            type: string
+        logros:
+          type: array
+          items:
+            type: string
+        respuestas:
+          type: array
+          items:
+            $ref: "#/components/schemas/RespuestaEjercicio"
+        estado:
+          type: object
+          additionalProperties: true
+          description: Estado completo del cliente, para restaurarlo en otro dispositivo.
+      required:
+        - puntos
+        - misiones
+        - logros
+        - respuestas
+        - estado
+
+    Avance:
+      type: object
+      properties:
+        participanteId:
+          type: string
+          format: uuid
+        puntos:
+          type: integer
+        misiones:
+          type: array
+          items:
+            type: string
+        logros:
+          type: array
+          items:
+            type: string
+        respondidas:
+          type: integer
+        aciertos:
+          type: integer
+        estado:
+          type: object
+          additionalProperties: true
+        actualizadoEn:
+          type: string
+          format: date-time
+      required:
+        - participanteId
+        - puntos
+        - misiones
+        - logros
+        - respondidas
+        - aciertos
+        - estado
+        - actualizadoEn
+
+    FilaTablero:
+      type: object
+      properties:
+        participanteId:
+          type: string
+          format: uuid
+        nombre:
+          type: string
+        equipoId:
+          type: string
+        puntos:
+          type: integer
+        misiones:
+          type: array
+          items:
+            type: string
+        logros:
+          type: array
+          items:
+            type: string
+        respondidas:
+          type: integer
+        aciertos:
+          type: integer
+        vistoEn:
+          type: string
+          format: date-time
+      required:
+        - participanteId
+        - nombre
+        - equipoId
+        - puntos
+        - misiones
+        - logros
+        - respondidas
+        - aciertos
+        - vistoEn
+
+    EstadisticaPregunta:
+      type: object
+      properties:
+        preguntaId:
+          type: string
+        respondidas:
+          type: integer
+        correctas:
+          type: integer
+        opciones:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Conteo de participantes por opción elegida.
+      required:
+        - preguntaId
+        - respondidas
+        - correctas
+        - opciones
+
+    ResumenTablero:
+      type: object
+      properties:
+        participantes:
+          type: integer
+        activosUltimos5Min:
+          type: integer
+        puntosPromedio:
+          type: number
+        misionesCompletadas:
+          type: integer
+      required:
+        - participantes
+        - activosUltimos5Min
+        - puntosPromedio
+        - misionesCompletadas
+
+    Tablero:
+      type: object
+      properties:
+        sesion:
+          $ref: "#/components/schemas/Sesion"
+        resumen:
+          $ref: "#/components/schemas/ResumenTablero"
+        filas:
+          type: array
+          items:
+            $ref: "#/components/schemas/FilaTablero"
+        preguntas:
+          type: array
+          items:
+            $ref: "#/components/schemas/EstadisticaPregunta"
+      required:
+        - sesion
+        - resumen
+        - filas
+        - preguntas

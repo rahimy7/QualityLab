@@ -1,8 +1,11 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import path from "node:path";
+import { existsSync } from "node:fs";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { manejadorErrores } from "./lib/errores";
 
 const app: Express = express();
 
@@ -30,5 +33,20 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+// Serve the Vite frontend build in production
+const staticDir =
+  process.env.STATIC_DIR ??
+  path.resolve(process.cwd(), "artifacts/qualitylab/dist/public");
+
+if (existsSync(staticDir)) {
+  app.use(express.static(staticDir));
+  // SPA fallback: send index.html for any non-API route
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(staticDir, "index.html"));
+  });
+}
+
+app.use(manejadorErrores);
 
 export default app;

@@ -1,8 +1,8 @@
 kind = "web"
 previewPath = "/"
-title = "QualityLab"
-description = "Plataforma interactiva para un diplomado de calidad y mejora continua. Guía a los participantes por misiones prácticas de diagnóstico, KPI, Pareto, causa raíz, Hoshin Kanri, control estadístico y auditoría, con gamificación por equipos."
-version = "1.0.0"
+title = "QualityLab 360"
+description = "Laboratorio interactivo de mejora continua para un módulo de 10 horas. Los participantes resuelven un caso real con 148 incidencias: diagnóstico, KPI, Pareto, Ishikawa, 5 porqués, Hoshin Kanri, control estadístico, auditoría, simulador e informe A3, con gamificación por equipos y panel para el facilitador."
+version = "2.0.0"
 id = "artifacts/qualitylab"
 router = "path"
 

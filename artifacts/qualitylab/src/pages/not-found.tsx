@@ -1,23 +1,24 @@
-import { Card, CardContent } from '@/components/ui/card';
-import { AlertCircle } from 'lucide-react';
+import { Link } from 'wouter';
+import { Compass } from 'lucide-react';
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md mx-4">
-        <CardContent className="pt-6">
-          <div className="flex mb-4 gap-2">
-            <AlertCircle className="h-8 w-8 text-red-500" />
-            <h1 className="text-2xl font-bold text-gray-900">
-              404 Page Not Found
-            </h1>
-          </div>
-
-          <p className="mt-4 text-sm text-gray-600">
-            Did you forget to add the page to the router?
-          </p>
-        </CardContent>
-      </Card>
+    <div className="grid min-h-[60vh] place-items-center">
+      <div className="text-center">
+        <Compass size={34} className="mx-auto text-[hsl(var(--primary))]" />
+        <div className="ql-mono mt-4 text-[10px] uppercase tracking-[.2em] text-[hsl(var(--primary))]">Error 404</div>
+        <h1 className="ql-display mt-2 text-4xl font-bold">Este laboratorio no existe.</h1>
+        <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-[hsl(var(--muted-foreground))]">
+          La ruta que buscas no forma parte del módulo. Vuelve al inicio y retoma desde donde quedaste.
+        </p>
+        <Link
+          href="/"
+          data-testid="link-volver-inicio"
+          className="mt-6 inline-flex rounded-xl bg-[hsl(var(--primary))] px-4 py-3 text-xs font-bold text-[hsl(var(--primary-foreground))]"
+        >
+          Volver al inicio
+        </Link>
+      </div>
     </div>
   );
 }

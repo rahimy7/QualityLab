@@ -1,0 +1,18 @@
+{
+  "name": "QualityLab 360 — Laboratorio de Mejora Continua",
+  "short_name": "QualityLab",
+  "description": "Plataforma interactiva del módulo Métodos de Análisis y Medición de la Mejora Continua: KPI, Pareto, Ishikawa, 5 porqués, Hoshin Kanri, control estadístico, auditoría y proyecto final sobre un caso real con datos.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f6f4ec",
+  "theme_color": "#2c9189",
+  "lang": "es",
+  "categories": ["education", "productivity", "business"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

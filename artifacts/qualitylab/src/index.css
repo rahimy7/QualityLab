@@ -399,3 +399,74 @@
 @media (max-width: 767px) {
   .ql-mobile-pad { padding-left: 1rem; padding-right: 1rem; }
 }
+
+/* ------------------------------------------------------------------ */
+/* QualityLab 360                                                      */
+/* ------------------------------------------------------------------ */
+
+/* Sliders con apariencia consistente en iOS y Android. */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  border: 2px solid hsl(var(--card));
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+  cursor: pointer;
+}
+input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  border: 2px solid hsl(var(--card));
+  cursor: pointer;
+}
+
+/* Evita el zoom automático de iOS al enfocar un campo. */
+@supports (-webkit-touch-callout: none) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Respeta la preferencia de movimiento reducido del sistema. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Impresión: el certificado y el informe A3 deben salir limpios en papel. */
+@media print {
+  header,
+  aside,
+  nav,
+  button {
+    display: none !important;
+  }
+  .ql-grid,
+  .ql-noise::after {
+    background-image: none !important;
+  }
+  .ql-card {
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+  body {
+    background: #fff !important;
+  }
+}
