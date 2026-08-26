@@ -6,6 +6,9 @@ RUN npm install -g pnpm@11.3.0 --no-fund --no-audit
 
 WORKDIR /app
 
+# Disable the pnpm-only preinstall guard (it runs inside Docker, always with pnpm)
+ENV CI=true
+
 # Copy workspace manifests first for better layer caching
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY tsconfig.base.json tsconfig.json ./
