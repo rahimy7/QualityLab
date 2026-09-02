@@ -8,7 +8,7 @@
  * Todos los datos del módulo viven en el bundle y el avance en localStorage,
  * así que una vez cargada la app funciona completa sin conexión.
  */
-const CACHE = 'qualitylab-v1';
+const CACHE = 'qualitylab-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -30,6 +30,10 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
+  // La API cambia con la DB (casos, grupos, avances). Va siempre por red y no
+  // se cachea: si no hay conexión, el cliente maneja el fallo.
+  if (url.pathname.startsWith('/api/')) return;
 
   if (request.mode === 'navigate') {
     event.respondWith(

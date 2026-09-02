@@ -7,6 +7,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ProgresoProvider } from '@/store/progreso';
 import { NubeProvider } from '@/store/nube';
+import { SincroGrupoProvider } from '@/store/sincroGrupo';
 import { AppShell } from '@/components/shell/AppShell';
 import Inicio from '@/pages/Inicio';
 
@@ -34,6 +35,7 @@ const Ranking = lazy(() => import('@/pages/Ranking'));
 const Certificado = lazy(() => import('@/pages/Certificado'));
 const Profesor = lazy(() => import('@/pages/Profesor'));
 const Datos = lazy(() => import('@/pages/Datos'));
+const Grupos = lazy(() => import('@/pages/Grupos'));
 const NotFound = lazy(() => import('@/pages/not-found'));
 
 const queryClient = new QueryClient();
@@ -60,35 +62,41 @@ function App() {
               el avance local y puede reemplazarlo al restaurar desde la clase. */}
           <ProgresoProvider>
             <NubeProvider>
-              <AppShell>
-                <ErrorBoundary>
-                  <Suspense fallback={<Cargando />}>
-                    <Switch>
-                      <Route path="/" component={Inicio} />
-                      <Route path="/curso" component={Curso} />
-                      <Route path="/misiones" component={Misiones} />
-                      <Route path="/diagnostico" component={Diagnostico} />
-                      <Route path="/kpi-lab" component={KpiLab} />
-                      <Route path="/pareto-lab" component={ParetoLab} />
-                      <Route path="/ishikawa" component={Ishikawa} />
-                      <Route path="/cinco-porques" component={CincoPorques} />
-                      <Route path="/hoshin" component={Hoshin} />
-                      <Route path="/estadistica" component={Estadistica} />
-                      <Route path="/mejora" component={Mejora} />
-                      <Route path="/auditoria" component={Auditoria} />
-                      <Route path="/simulador" component={Simulador} />
-                      <Route path="/dashboard" component={Dashboard} />
-                      <Route path="/coach" component={Coach} />
-                      <Route path="/proyecto" component={Proyecto} />
-                      <Route path="/ranking" component={Ranking} />
-                      <Route path="/certificado" component={Certificado} />
-                      <Route path="/profesor" component={Profesor} />
-                      <Route path="/datos" component={Datos} />
-                      <Route component={NotFound} />
-                    </Switch>
-                  </Suspense>
-                </ErrorBoundary>
-              </AppShell>
+              {/* El auto-guardado por grupo se monta en la raíz para que siga
+                  enviando mientras el participante trabaja en los laboratorios,
+                  no solo mientras mira el panel de Inicio. */}
+              <SincroGrupoProvider>
+                <AppShell>
+                  <ErrorBoundary>
+                    <Suspense fallback={<Cargando />}>
+                      <Switch>
+                        <Route path="/" component={Inicio} />
+                        <Route path="/curso" component={Curso} />
+                        <Route path="/misiones" component={Misiones} />
+                        <Route path="/diagnostico" component={Diagnostico} />
+                        <Route path="/kpi-lab" component={KpiLab} />
+                        <Route path="/pareto-lab" component={ParetoLab} />
+                        <Route path="/ishikawa" component={Ishikawa} />
+                        <Route path="/cinco-porques" component={CincoPorques} />
+                        <Route path="/hoshin" component={Hoshin} />
+                        <Route path="/estadistica" component={Estadistica} />
+                        <Route path="/mejora" component={Mejora} />
+                        <Route path="/auditoria" component={Auditoria} />
+                        <Route path="/simulador" component={Simulador} />
+                        <Route path="/dashboard" component={Dashboard} />
+                        <Route path="/coach" component={Coach} />
+                        <Route path="/proyecto" component={Proyecto} />
+                        <Route path="/ranking" component={Ranking} />
+                        <Route path="/certificado" component={Certificado} />
+                        <Route path="/profesor" component={Profesor} />
+                        <Route path="/datos" component={Datos} />
+                        <Route path="/grupos" component={Grupos} />
+                        <Route component={NotFound} />
+                      </Switch>
+                    </Suspense>
+                  </ErrorBoundary>
+                </AppShell>
+              </SincroGrupoProvider>
               <Toaster />
             </NubeProvider>
           </ProgresoProvider>

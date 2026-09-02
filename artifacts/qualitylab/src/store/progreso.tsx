@@ -15,12 +15,20 @@ import {
   type ReactNode,
 } from 'react';
 import { equipos } from '@/data/equipos';
-import { logros as catalogoLogros, misiones } from '@/data/misiones';
-import { preguntas } from '@/data/quizzes';
+import { misiones } from '@/data/misiones';
+import { casoActivo, casoActivoId } from '@/data/casos';
+import { calcularPuntos, type Puntaje } from '@/lib/puntos';
 import type { Clasificacion } from '@/data/auditoria';
 import type { EmeId } from '@/data/caso';
 
-const CLAVE = 'qualitylab360.v1';
+/**
+ * La clave de storage cuelga del caso activo: cada caso guarda su propio
+ * avance y cambiar de caso conserva lo trabajado en el otro. El prefijo v1 se
+ * mantiene para no romper el avance existente del caso Andina.
+ */
+const CLAVE = casoActivoId === 'andina'
+  ? 'qualitylab360.v1'
+  : `qualitylab360.v1.${casoActivoId}`;
 
 export interface FichaKpi {
   objetivo: string;
@@ -181,12 +189,8 @@ interface Contexto {
   /** Sustituye todo el avance, por ejemplo al restaurarlo desde el servidor. */
   reemplazar: (estado: Partial<EstadoApp>) => void;
   reiniciar: () => void;
-  puntos: {
-    total: number;
-    porMisiones: number;
-    porQuiz: number;
-    porLogros: number;
-  };
+  /** Recalculado con las mismas reglas que ve el facilitador. */
+  puntos: Puntaje;
   avance: number;
 }
 
@@ -239,21 +243,14 @@ export function ProgresoProvider({ children }: { children: ReactNode }) {
     setEstado((prev) => ({ ...estadoInicial, perfil: prev.perfil }));
   }, []);
 
-  const puntos = useMemo(() => {
-    const porMisiones = misiones
-      .filter((m) => estado.misiones.includes(m.clave))
-      .reduce((acc, m) => acc + m.puntos, 0);
-
-    const porQuiz = preguntas
-      .filter((p) => estado.quiz[p.id] === p.correcta)
-      .reduce((acc, p) => acc + p.puntos, 0);
-
-    const porLogros = catalogoLogros
-      .filter((l) => estado.logros.includes(l.id))
-      .reduce((acc, l) => acc + l.puntos, 0);
-
-    return { total: porMisiones + porQuiz + porLogros, porMisiones, porQuiz, porLogros };
-  }, [estado.misiones, estado.quiz, estado.logros]);
+  const puntos = useMemo(
+    () =>
+      calcularPuntos(
+        { misiones: estado.misiones, quiz: estado.quiz, logros: estado.logros },
+        casoActivo,
+      ),
+    [estado.misiones, estado.quiz, estado.logros],
+  );
 
   const avance = useMemo(
     () => Math.round((estado.misiones.length / misiones.length) * 100),

@@ -19,10 +19,14 @@ import {
 } from 'react';
 import { obtenerSesion, unirseSesion, guardarAvance, type Avance } from '@workspace/api-client-react';
 import { preguntas } from '@/data/quizzes';
+import { casoActivoId } from '@/data/casos';
 import { idDispositivo } from '@/lib/dispositivo';
 import { useProgreso, type EstadoApp } from './progreso';
 
-const CLAVE = 'qualitylab360.nube';
+/** El estado de la nube también se scopea al caso activo. */
+const CLAVE = casoActivoId === 'andina'
+  ? 'qualitylab360.nube'
+  : `qualitylab360.nube.${casoActivoId}`;
 const DEBOUNCE_MS = 2500;
 const LATIDO_MS = 90_000;
 

@@ -27,6 +27,15 @@ export function usd(valor: number, decimales = 0): string {
   });
 }
 
+/**
+ * Pluralización en español. El plural se pasa completo cuando la frase lleva
+ * adjetivo ("entrada registrada" → "entradas registradas") y no basta con
+ * añadir una -s al final.
+ */
+export function plural(n: number, singular: string, formaPlural = `${singular}s`): string {
+  return `${n} ${n === 1 ? singular : formaPlural}`;
+}
+
 export function valorP(p: number): string {
   if (p < 0.001) return 'p < 0.001';
   return `p = ${num(p, 3)}`;

@@ -4,3 +4,5 @@ export * from './sesiones';
 export * from './participantes';
 export * from './avances';
 export * from './respuestas';
+export * from './casos';
+export * from './gruposAvances';

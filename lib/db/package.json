@@ -5,11 +5,14 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./schema": "./src/schema/index.ts"
+    "./schema": "./src/schema/index.ts",
+    "./catalogo": "./src/grupos.ts"
   },
   "scripts": {
     "push": "drizzle-kit push --config ./drizzle.config.ts",
-    "push-force": "drizzle-kit push --force --config ./drizzle.config.ts"
+    "push-force": "drizzle-kit push --force --config ./drizzle.config.ts",
+    "migrar": "tsx --env-file-if-exists=../../.env ./src/scripts/migrar-incremental.ts",
+    "seed": "tsx --env-file-if-exists=../../.env ./src/scripts/seed.ts"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",
@@ -20,6 +23,7 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "@types/pg": "^8.20.0",
-    "drizzle-kit": "^0.31.10"
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.23.1"
   }
 }

@@ -1,30 +1,81 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Medal, Trophy } from 'lucide-react';
+import { CloudOff, Medal, Trophy } from 'lucide-react';
 import { equipos } from '@/data/equipos';
+import { casosLista } from '@/data/casos';
 import { logros, misiones, puntosPosibles } from '@/data/misiones';
 import { preguntas } from '@/data/quizzes';
 import { useProgreso } from '@/store/progreso';
+import { idDispositivo } from '@/lib/dispositivo';
+import { plural } from '@/lib/formato';
+import { calcularPuntos, puntajeVacio, sumar, type Puntaje } from '@/lib/puntos';
 import { tonoColor } from '@/lib/palette';
 import { EncabezadoPagina, Panel, Tile } from '@/components/lab/primitivos';
 
+/** Fila ligera de `/api/grupos/avances`: lo mínimo para puntuar. */
+interface AvanceAula {
+  grupoId: string;
+  casoId: string;
+  dispositivoId: string;
+  misiones: string[];
+  quiz: Record<string, string>;
+  logros: string[];
+}
+
 export default function Ranking() {
   const { estado, puntos } = useProgreso();
+  const [aula, setAula] = useState<AvanceAula[] | null>(null);
+  const [errorAula, setErrorAula] = useState<string | null>(null);
+
+  // El marcador sale del avance que los equipos sincronizaron a la nube.
+  useEffect(() => {
+    let vivo = true;
+    fetch('/api/grupos/avances')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((datos: AvanceAula[]) => {
+        if (vivo) setAula(datos);
+      })
+      .catch((err) => {
+        if (vivo) setErrorAula(err instanceof Error ? err.message : String(err));
+      });
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  const casoInfo = useMemo(() => new Map(casosLista.map((c) => [c.id, c])), []);
 
   const tabla = useMemo(() => {
     const propio = estado.perfil.equipoId;
-    return equipos
-      .map((e) => ({
-        ...e,
-        // El equipo del participante suma sus puntos reales sobre la base de la sala.
-        total: e.id === propio ? e.puntosBase + puntos.total : e.puntosBase,
-        esPropio: e.id === propio,
-      }))
-      .sort((a, b) => b.total - a.total);
-  }, [estado.perfil.equipoId, puntos.total]);
+    const mio = idDispositivo();
+    const acumulado = new Map<string, Puntaje>();
+    const dispositivos = new Map<string, Set<string>>();
 
-  const aciertos = preguntas.filter((p) => estado.quiz[p.id] === p.correcta).length;
-  const respondidas = preguntas.filter((p) => estado.quiz[p.id]).length;
+    for (const fila of aula ?? []) {
+      // Mi propia fila se ignora: mi avance entra desde el estado local, que va
+      // por delante de lo último que alcanzó a sincronizar. Así cuento una vez.
+      if (fila.dispositivoId === mio) continue;
+      acumulado.set(
+        fila.grupoId,
+        sumar(acumulado.get(fila.grupoId) ?? puntajeVacio, calcularPuntos(fila, casoInfo.get(fila.casoId))),
+      );
+      const gente = dispositivos.get(fila.grupoId) ?? new Set<string>();
+      gente.add(fila.dispositivoId);
+      dispositivos.set(fila.grupoId, gente);
+    }
+
+    return equipos
+      .map((e) => {
+        const esPropio = e.id === propio;
+        return {
+          ...e,
+          total: (acumulado.get(e.id)?.total ?? 0) + (esPropio ? puntos.total : 0),
+          participantes: (dispositivos.get(e.id)?.size ?? 0) + (esPropio ? 1 : 0),
+          esPropio,
+        };
+      })
+      .sort((a, b) => b.total - a.total);
+  }, [aula, casoInfo, estado.perfil.equipoId, puntos.total]);
 
   return (
     <div className="space-y-6">
@@ -40,15 +91,29 @@ export default function Ranking() {
         <Tile label="Misiones completadas" valor={estado.misiones.length} decimales={0} detalle={`de ${misiones.length}`} />
         <Tile
           label="Ejercicios correctos"
-          valor={aciertos}
+          valor={puntos.correctas}
           decimales={0}
-          detalle={`de ${respondidas} respondidos · ${preguntas.length} en total`}
-          tono={respondidas > 0 && aciertos / respondidas >= 0.7 ? 'ok' : 'alerta'}
+          detalle={`de ${puntos.respondidas} respondidos · ${preguntas.length} en total`}
+          tono={puntos.respondidas > 0 && puntos.correctas / puntos.respondidas >= 0.7 ? 'ok' : 'alerta'}
         />
         <Tile label="Logros desbloqueados" valor={estado.logros.length} decimales={0} detalle={`de ${logros.length}`} />
       </div>
 
-      <Panel titulo="Equipos" subtitulo="Tu equipo suma tus puntos reales; el resto muestra el avance de la sala">
+      <Panel
+        titulo="Equipos"
+        subtitulo={
+          errorAula
+            ? 'Sin conexión con el aula: solo se muestra tu avance de este dispositivo.'
+            : aula === null
+              ? 'Consultando el avance del aula…'
+              : 'Puntos reales de quienes guardan en la nube; tu equipo suma además tu avance de este dispositivo.'
+        }
+      >
+        {errorAula ? (
+          <div className="mb-3 flex items-center gap-2 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted)/.4)] px-3 py-2 text-[11px] text-[hsl(var(--muted-foreground))]">
+            <CloudOff size={13} /> No se pudo consultar el aula ({errorAula}).
+          </div>
+        ) : null}
         <div className="space-y-2">
           {tabla.map((e, i) => (
             <motion.div
@@ -86,7 +151,7 @@ export default function Ranking() {
               <div className="shrink-0 text-right">
                 <div className="ql-display text-xl font-bold text-[hsl(var(--primary))]">{e.total}</div>
                 <div className="ql-mono text-[9px] uppercase tracking-[.1em] text-[hsl(var(--muted-foreground))]">
-                  {e.integrantes} integrantes
+                  {plural(e.participantes, 'participante')}
                 </div>
               </div>
             </motion.div>
