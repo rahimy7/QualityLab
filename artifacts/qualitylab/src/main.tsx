@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 
 import { ErrorBoundary } from '@/components/error-boundary';
-import { registrarServiceWorker } from '@/lib/pwa';
+import { esErrorDeModulo, recuperarDeVersionVieja, registrarServiceWorker } from '@/lib/pwa';
 
 import './index.css';
 
@@ -48,6 +48,8 @@ async function arrancar(): Promise<void> {
     );
     registrarServiceWorker();
   } catch (err) {
+    // Un bundle de otra versión se recupera solo; un fallo de la API se muestra.
+    if (esErrorDeModulo(err) && (await recuperarDeVersionVieja())) return;
     pintarError(err);
   }
 }

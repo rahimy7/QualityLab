@@ -1,8 +1,9 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ComponentType } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Route, Switch } from 'wouter';
 import { MotionConfig } from 'framer-motion';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { esErrorDeModulo, recuperarDeVersionVieja } from '@/lib/pwa';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ProgresoProvider } from '@/store/progreso';
@@ -15,28 +16,48 @@ import Inicio from '@/pages/Inicio';
  * Solo Inicio viaja en el bundle inicial. El resto se carga al navegar: los
  * participantes entran desde el celular con el wifi del aula y la primera
  * pantalla debe aparecer rápido, aunque el módulo completo pese bastante más.
+ *
+ * Ese mismo troceado tiene un costo: un despliegue nuevo borra los chunks del
+ * anterior, así que una pestaña que quedó abierta pide archivos que ya no
+ * existen y la pantalla se queda vacía. `perezoso` lo detecta, limpia lo que
+ * guardó la versión vieja y recarga una sola vez.
  */
-const Curso = lazy(() => import('@/pages/Curso'));
-const Misiones = lazy(() => import('@/pages/Misiones'));
-const Diagnostico = lazy(() => import('@/pages/Diagnostico'));
-const KpiLab = lazy(() => import('@/pages/KpiLab'));
-const ParetoLab = lazy(() => import('@/pages/ParetoLab'));
-const Ishikawa = lazy(() => import('@/pages/Ishikawa'));
-const CincoPorques = lazy(() => import('@/pages/CincoPorques'));
-const Hoshin = lazy(() => import('@/pages/Hoshin'));
-const Estadistica = lazy(() => import('@/pages/Estadistica'));
-const Mejora = lazy(() => import('@/pages/Mejora'));
-const Auditoria = lazy(() => import('@/pages/Auditoria'));
-const Simulador = lazy(() => import('@/pages/Simulador'));
-const Dashboard = lazy(() => import('@/pages/Dashboard'));
-const Coach = lazy(() => import('@/pages/Coach'));
-const Proyecto = lazy(() => import('@/pages/Proyecto'));
-const Ranking = lazy(() => import('@/pages/Ranking'));
-const Certificado = lazy(() => import('@/pages/Certificado'));
-const Profesor = lazy(() => import('@/pages/Profesor'));
-const Datos = lazy(() => import('@/pages/Datos'));
-const Grupos = lazy(() => import('@/pages/Grupos'));
-const NotFound = lazy(() => import('@/pages/not-found'));
+function perezoso<T extends ComponentType<any>>(cargar: () => Promise<{ default: T }>) {
+  return lazy(async () => {
+    try {
+      return await cargar();
+    } catch (err) {
+      if (esErrorDeModulo(err) && (await recuperarDeVersionVieja())) {
+        // La recarga ya va en camino: no resolvemos, para no pintar un error
+        // que el participante vería parpadear un instante.
+        await new Promise<never>(() => {});
+      }
+      throw err;
+    }
+  });
+}
+
+const Curso = perezoso(() => import('@/pages/Curso'));
+const Misiones = perezoso(() => import('@/pages/Misiones'));
+const Diagnostico = perezoso(() => import('@/pages/Diagnostico'));
+const KpiLab = perezoso(() => import('@/pages/KpiLab'));
+const ParetoLab = perezoso(() => import('@/pages/ParetoLab'));
+const Ishikawa = perezoso(() => import('@/pages/Ishikawa'));
+const CincoPorques = perezoso(() => import('@/pages/CincoPorques'));
+const Hoshin = perezoso(() => import('@/pages/Hoshin'));
+const Estadistica = perezoso(() => import('@/pages/Estadistica'));
+const Mejora = perezoso(() => import('@/pages/Mejora'));
+const Auditoria = perezoso(() => import('@/pages/Auditoria'));
+const Simulador = perezoso(() => import('@/pages/Simulador'));
+const Dashboard = perezoso(() => import('@/pages/Dashboard'));
+const Coach = perezoso(() => import('@/pages/Coach'));
+const Proyecto = perezoso(() => import('@/pages/Proyecto'));
+const Ranking = perezoso(() => import('@/pages/Ranking'));
+const Certificado = perezoso(() => import('@/pages/Certificado'));
+const Profesor = perezoso(() => import('@/pages/Profesor'));
+const Datos = perezoso(() => import('@/pages/Datos'));
+const Grupos = perezoso(() => import('@/pages/Grupos'));
+const NotFound = perezoso(() => import('@/pages/not-found'));
 
 const queryClient = new QueryClient();
 

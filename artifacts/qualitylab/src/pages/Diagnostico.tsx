@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Target } from 'lucide-react';
 import { indicadoresBase, semaforo } from '@/data/caso';
+import type { CriteriosIndicador, IndicadorBase } from '@/data/casos/tipos';
 import { votosIniciales } from '@/data/series';
 import { useProgreso } from '@/store/progreso';
 import { num, pct, pp } from '@/lib/formato';
@@ -12,8 +13,15 @@ import { Teoria } from '@/components/lab/Teoria';
 import { Quiz } from '@/components/lab/Quiz';
 import { CierreMision } from '@/components/lab/CierreMision';
 
-/** Criterios que el participante debe sopesar antes de elegir prioridad. */
-const criterios: Record<string, { impacto: number; control: number; esfuerzo: number; tipo: 'resultado' | 'proceso' }> = {
+/**
+ * Criterios que el participante debe sopesar antes de elegir prioridad.
+ *
+ * Lo correcto es que cada caso traiga los suyos en `indicador.criterios`; este
+ * mapa es el respaldo del caso Andina, que se escribió antes de que existieran
+ * los demás casos. Un indicador sin criterios se pinta sin las barras: la
+ * votación sigue funcionando, que es lo que la misión pide.
+ */
+const criteriosAndina: Record<string, CriteriosIndicador> = {
   satisfaccion: { impacto: 5, control: 1, esfuerzo: 5, tipo: 'resultado' },
   entregas: { impacto: 5, control: 4, esfuerzo: 3, tipo: 'proceso' },
   reclamos: { impacto: 4, control: 2, esfuerzo: 4, tipo: 'resultado' },
@@ -64,7 +72,8 @@ export default function Diagnostico() {
         <div className="space-y-2.5">
           {indicadoresBase.map((ind) => {
             const s = semaforo(ind.valor, ind.meta, ind.menorEsMejor);
-            const c = criterios[ind.id];
+            const c: CriteriosIndicador | undefined =
+              (ind as IndicadorBase).criterios ?? criteriosAndina[ind.id];
             const porcentaje = totalVotos ? ((votos[ind.id] ?? 0) / totalVotos) * 100 : 0;
             const elegido = estado.voto === ind.id;
 
@@ -94,27 +103,31 @@ export default function Diagnostico() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-bold">{ind.label}</span>
                       <Semaforo tono={s.tono} etiqueta={`${num(ind.valor)}${ind.unidad}`} size="sm" />
-                      <span className="ql-mono text-[10px] uppercase tracking-[.1em] text-[hsl(var(--muted-foreground))]">
-                        {c.tipo === 'resultado' ? 'indicador de resultado' : 'indicador de proceso'}
-                      </span>
+                      {c ? (
+                        <span className="ql-mono text-[10px] uppercase tracking-[.1em] text-[hsl(var(--muted-foreground))]">
+                          {c.tipo === 'resultado' ? 'indicador de resultado' : 'indicador de proceso'}
+                        </span>
+                      ) : null}
                     </div>
                     <p className="mt-1 text-[11px] leading-4 text-[hsl(var(--muted-foreground))]">
                       {ind.contexto} · brecha de {num(s.brecha)} pp contra la meta · fuente: {ind.fuente}
                     </p>
-                    <div className="mt-2.5 flex flex-wrap gap-x-5 gap-y-1.5">
-                      {[
-                        { label: 'Impacto en el cliente', valor: c.impacto, color: p.series[0] },
-                        { label: 'Control del equipo', valor: c.control, color: p.series[1] },
-                        { label: 'Esfuerzo requerido', valor: c.esfuerzo, color: p.series[3] },
-                      ].map((crit) => (
-                        <span key={crit.label} className="flex items-center gap-1.5">
-                          <span className="ql-mono text-[9px] uppercase tracking-[.08em] text-[hsl(var(--muted-foreground))]">
-                            {crit.label}
+                    {c ? (
+                      <div className="mt-2.5 flex flex-wrap gap-x-5 gap-y-1.5">
+                        {[
+                          { label: 'Impacto en el cliente', valor: c.impacto, color: p.series[0] },
+                          { label: 'Control del equipo', valor: c.control, color: p.series[1] },
+                          { label: 'Esfuerzo requerido', valor: c.esfuerzo, color: p.series[3] },
+                        ].map((crit) => (
+                          <span key={crit.label} className="flex items-center gap-1.5">
+                            <span className="ql-mono text-[9px] uppercase tracking-[.08em] text-[hsl(var(--muted-foreground))]">
+                              {crit.label}
+                            </span>
+                            <Barra valor={crit.valor} color={crit.color} />
                           </span>
-                          <Barra valor={crit.valor} color={crit.color} />
-                        </span>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                   {estado.voto ? (
                     <span className="ql-mono shrink-0 text-sm font-bold text-[hsl(var(--primary))]">

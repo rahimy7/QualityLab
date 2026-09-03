@@ -41,9 +41,16 @@ const staticDir =
 
 if (existsSync(staticDir)) {
   app.use(express.static(staticDir));
-  // SPA fallback: send index.html for any non-API GET request
+  // SPA fallback: send index.html for any non-API GET request.
+  //
+  // Un archivo que no existe queda fuera a propósito: tras un despliegue, una
+  // pestaña abierta desde antes pide chunks del build anterior. Si a esos les
+  // devolvemos index.html, el navegador recibe HTML donde espera un módulo, lo
+  // rechaza por MIME y la sección no abre. Con 404 el cliente puede detectarlo
+  // y recargar. Las rutas del SPA no llevan extensión, así que no se ven afectadas.
   app.use((req, res, next) => {
     if (req.method !== "GET" || req.path.startsWith("/api")) return next();
+    if (path.extname(req.path)) return next();
     res.sendFile(path.join(staticDir, "index.html"));
   });
 }

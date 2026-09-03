@@ -9,6 +9,19 @@ import type { LucideIcon } from 'lucide-react';
 
 export type Tono = 'critico' | 'alerta' | 'ok';
 
+/**
+ * Cómo se sopesa un indicador en el diagnóstico inicial: cuánto le importa al
+ * cliente, cuánto puede moverlo el equipo y cuánto cuesta hacerlo. Es contenido
+ * del caso, no de la pantalla, porque cada empresa tiene sus propios trade-offs.
+ */
+export interface CriteriosIndicador {
+  /** 1 a 5. */
+  impacto: number;
+  control: number;
+  esfuerzo: number;
+  tipo: 'resultado' | 'proceso';
+}
+
 export interface IndicadorBase {
   id: string;
   label: string;
@@ -21,6 +34,8 @@ export interface IndicadorBase {
   contexto: string;
   fuente: string;
   responsable: string;
+  /** Opcional: sin esto el diagnóstico pinta el indicador sin las barras. */
+  criterios?: CriteriosIndicador;
 }
 
 export interface Emes {
