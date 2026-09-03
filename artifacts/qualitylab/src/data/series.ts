@@ -17,9 +17,12 @@ export const pedidosMuestra = casoActivo.pedidosMuestra;
  * Cada caso decide qué serie es la protagonista (Andina: entregas tardías;
  * Pintura: reprocesos).
  */
-export const entregasTardias = casoActivo.series.find((s) => s.id === 'entregas')?.valores
-  ?? casoActivo.series.find((s) => s.id === 'reprocesos')?.valores
-  ?? casoActivo.series[0].valores;
+export const serieProtagonista =
+  casoActivo.series.find((s) => s.id === 'entregas') ??
+  casoActivo.series.find((s) => s.id === 'reprocesos') ??
+  casoActivo.series[0];
+
+export const entregasTardias = serieProtagonista.valores;
 
 export const entregasAntes = entregasTardias.slice(0, casoActivo.semanaIntervencion - 1);
 export const entregasDespues = entregasTardias.slice(casoActivo.semanaIntervencion - 1);

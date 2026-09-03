@@ -13,6 +13,7 @@ import { Router, type IRouter } from 'express';
 import { z } from 'zod';
 import { chat, ErrorOpenAI, type MensajeChat } from '../lib/openai';
 import { logger } from '../lib/logger';
+import { exigirUsuario } from '../lib/auth';
 
 const router: IRouter = Router();
 
@@ -96,6 +97,15 @@ function construirSistema(cuerpo: z.infer<typeof esquemaCuerpo>): string {
 }
 
 router.post('/entrevista/mensaje', async (req, res, next) => {
+  try {
+    // Exige cuenta: esta ruta gasta cuota de OpenAI, así que no puede quedar
+    // abierta a quien encuentre la URL.
+    await exigirUsuario(req);
+  } catch (err) {
+    next(err);
+    return;
+  }
+
   const parse = esquemaCuerpo.safeParse(req.body);
   if (!parse.success) {
     res.status(400).json({ error: 'cuerpo-invalido', detalle: parse.error.issues });

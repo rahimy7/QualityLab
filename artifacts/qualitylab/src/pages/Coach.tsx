@@ -1,9 +1,11 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Bot, Send, Sparkles, User } from 'lucide-react';
-import { buscarRespuesta, preguntasSugeridas } from '@/data/coach';
+import { baseConocimiento, buscarRespuesta, preguntasSugeridas } from '@/data/coach';
 import { incidencias } from '@/data/incidencias';
-import { entregasTardias } from '@/data/series';
+import { entregasTardias, serieProtagonista, series } from '@/data/series';
+import { casoActivo } from '@/data/casos';
+import { misiones } from '@/data/misiones';
 import { useProgreso } from '@/store/progreso';
 import { countBy, compareBeforeAfter, mean, pareto, stdDev } from '@/lib/stats';
 import { num, pct, valorP } from '@/lib/formato';
@@ -28,6 +30,7 @@ export default function Coach() {
   const { estado } = useProgreso();
   const [mensajes, setMensajes] = useState<Mensaje[]>([BIENVENIDA]);
   const [entrada, setEntrada] = useState('');
+  const [pensando, setPensando] = useState(false);
   const finRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -65,9 +68,9 @@ export default function Coach() {
           titulo: `Lectura de "${k.indicador}"`,
           texto: [
             Number.isFinite(base) && Number.isFinite(meta)
-              ? `Nivel: el caso está hoy en ${pct(actual)} y tu meta es ${num(meta)} %. La brecha es de ${num(Math.abs(brecha ?? 0))} puntos porcentuales — no "${num(Math.abs(brecha ?? 0))} %", que es otra cosa.`
+              ? `Nivel: ${serieProtagonista.label.toLowerCase()} está hoy en ${num(actual)}${serieProtagonista.unidad} y tu meta es ${num(meta)}${serieProtagonista.unidad}. La brecha es de ${num(Math.abs(brecha ?? 0))} puntos porcentuales — no "${num(Math.abs(brecha ?? 0))} %", que es otra cosa.`
               : 'Falta línea base o meta numérica: sin ellas no hay brecha que leer.',
-            `Variación: desde la línea base de ${pct(mean(entregasTardias.slice(0, 12)))} la reducción relativa acumulada es de ${pct(Math.abs(((actual - mean(entregasTardias.slice(0, 12))) / mean(entregasTardias.slice(0, 12))) * 100))}.`,
+            `Variación: desde la línea base de ${num(mean(entregasTardias.slice(0, 12)))}${serieProtagonista.unidad} la reducción relativa acumulada es de ${pct(Math.abs(((actual - mean(entregasTardias.slice(0, 12))) / mean(entregasTardias.slice(0, 12))) * 100))}.`,
             faltan.length
               ? `Tu ficha todavía no permite gestionar del todo: falta ${faltan.join(', ')}.`
               : 'Tu ficha tiene los componentes necesarios para gestionar: objetivo, fórmula, base, meta con fecha, frecuencia, fuente, dueño y umbral.',
@@ -97,7 +100,7 @@ export default function Coach() {
           return {
             de: 'q',
             titulo: 'Tu cadena de porqués',
-            texto: 'Todavía no has escrito ningún nivel. Empieza por un hecho verificable: "el 19 % de los pedidos se entrega después de la fecha comprometida", y de ahí baja preguntando por qué.',
+            texto: `Todavía no has escrito ningún nivel. Empieza por un hecho verificable: "${serieProtagonista.label.toLowerCase()} está en ${num(mean(entregasTardias))}${serieProtagonista.unidad} contra una meta de ${num(serieProtagonista.meta)}${serieProtagonista.unidad}", y de ahí baja preguntando por qué.`,
           };
         }
         return {
@@ -123,7 +126,7 @@ export default function Coach() {
         return {
           de: 'q',
           titulo: 'Tu análisis de mejora',
-          texto: `Con el corte en la semana ${estado.mejora.inicioDespues}: de ${pct(c.before.mean)} a ${pct(c.after.mean)}, una reducción de ${pct(Math.abs(c.relativeChange))} (${num(Math.abs(c.absoluteChange))} puntos porcentuales).\n\nLa prueba t de Welch da ${valorP(c.pValue)}, ${c.significant ? 'por debajo de 0.05: la diferencia es mayor que la variación normal del proceso' : 'por encima de 0.05: no puedes descartar que sea variación normal'}.\n\nLa variabilidad también cambió: σ pasó de ${num(c.before.sd)} a ${num(c.after.sd)}. ${
+          texto: `Con el corte en la semana ${estado.mejora.inicioDespues}: ${serieProtagonista.label.toLowerCase()} pasa de ${num(c.before.mean)}${serieProtagonista.unidad} a ${num(c.after.mean)}${serieProtagonista.unidad}, una reducción de ${pct(Math.abs(c.relativeChange))} (${num(Math.abs(c.absoluteChange))} puntos porcentuales).\n\nLa prueba t de Welch da ${valorP(c.pValue)}, ${c.significant ? 'por debajo de 0.05: la diferencia es mayor que la variación normal del proceso' : 'por encima de 0.05: no puedes descartar que sea variación normal'}.\n\nLa variabilidad también cambió: σ pasó de ${num(c.before.sd)} a ${num(c.after.sd)}. ${
             c.after.sd < c.before.sd
               ? 'Eso importa tanto como el nivel: el proceso no solo mejoró, se volvió más predecible.'
               : 'Cuidado: el nivel bajó pero la dispersión no. Un proceso mejor pero más errático sigue incumpliendo la promesa de forma impredecible.'
@@ -162,7 +165,7 @@ export default function Coach() {
         return {
           de: 'q',
           titulo: 'Los datos del caso',
-          texto: `Tienes ${incidencias.length} incidencias con causa, área, turno, costo y horas de retraso, más 24 semanas de seis indicadores.\n\nLa serie de entregas tardías promedia ${pct(mean(entregasTardias))} con σ = ${num(s)}. Puedes descargar todo en CSV desde "Datos del caso" para trabajarlo también en Excel.`,
+          texto: `Tienes ${incidencias.length} incidencias con causa, área, turno, costo y horas de retraso, más ${casoActivo.totalSemanas} semanas de ${series.length} indicadores de ${casoActivo.empresa.nombre}.\n\nLa serie de ${serieProtagonista.label.toLowerCase()} promedia ${num(mean(entregasTardias))}${serieProtagonista.unidad} con σ = ${num(s)}. Puedes descargar todo en CSV desde "Datos del caso" para trabajarlo también en Excel.`,
           repregunta: '¿Qué pregunta quieres responder con esos datos? El gráfico se elige después, no antes.',
         };
       },
@@ -179,22 +182,81 @@ export default function Coach() {
     { label: 'Sobre los datos', fn: analisis.datos },
   ];
 
-  const responder = (texto: string) => {
+  /** Lo que el participante lleva hecho, para que Q hable de SU trabajo. */
+  const avanceResumido = useMemo(() => {
+    const r: string[] = [];
+    if (estado.kpi.indicador.trim()) {
+      r.push(`Ficha KPI: indicador "${estado.kpi.indicador}", meta "${estado.kpi.meta}", fórmula "${estado.kpi.formula || 'sin escribir'}".`);
+    }
+    if (estado.voto) r.push(`En el diagnóstico priorizó: ${estado.voto}.`);
+    r.push(`Pareto con corte al ${estado.pareto.corte} % por ${estado.pareto.criterio}.`);
+    const porques = estado.porques.filter((q) => q.respuesta.trim()).length;
+    if (porques) r.push(`Cadena de 5 porqués: ${porques} niveles respondidos.`);
+    if (estado.causaRaiz.enunciado.trim()) r.push(`Causa raíz declarada: "${estado.causaRaiz.enunciado.trim()}".`);
+    const inis = estado.hoshin.iniciativas.filter((i) => i.trim()).length;
+    if (inis) r.push(`Hoshin: ${inis} iniciativas y ${estado.hoshin.cruces.length} cruces en la X-Matrix.`);
+    r.push(`Misiones completadas: ${estado.misiones.length} de ${misiones.length}.`);
+    return r;
+  }, [estado]);
+
+  const responder = async (texto: string) => {
     const limpio = texto.trim();
-    if (!limpio) return;
-    const entrada: Mensaje = { de: 'yo', texto: limpio };
-    const encontrada = buscarRespuesta(limpio);
-    const respuesta: Mensaje = encontrada
-      ? { de: 'q', titulo: encontrada.titulo, texto: encontrada.respuesta, repregunta: encontrada.repregunta }
-      : {
-          de: 'q',
-          titulo: 'No tengo eso en mi manual',
-          texto:
-            'Solo respondo sobre los métodos de este módulo: KPI, Pareto, Ishikawa, 5 porqués, Hoshin Kanri, control estadístico, capacidad, antes/después, auditoría e impacto económico.\n\nPrueba con los botones de análisis: ahí trabajo directamente sobre lo que tú cargaste en la plataforma.',
-          repregunta: '¿Qué decisión estás tratando de tomar? Con eso puedo orientarte mejor.',
-        };
-    setMensajes((m) => [...m, entrada, respuesta]);
+    if (!limpio || pensando) return;
+
+    // El historial se toma ANTES de añadir la pregunta nueva, que va aparte.
+    const historial = mensajes
+      .slice(1)
+      .slice(-10)
+      .map((m) => ({ role: m.de === 'yo' ? ('user' as const) : ('assistant' as const), content: m.texto }));
+
+    setMensajes((m) => [...m, { de: 'yo', texto: limpio }]);
     setEntrada('');
+    setPensando(true);
+
+    try {
+      const r = await fetch('/api/coach/mensaje', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          caso: {
+            empresa: casoActivo.empresa.nombre,
+            sector: casoActivo.empresa.sector,
+            encargo: casoActivo.empresa.encargo,
+          },
+          indicadores: casoActivo.indicadoresBase.map(
+            (i) => `${i.label}: ${i.valor}${i.unidad} (meta ${i.menorEsMejor ? '<=' : '>='} ${i.meta}${i.unidad}, fuente ${i.fuente})`,
+          ),
+          manual: baseConocimiento.map((e) => ({ titulo: e.titulo, respuesta: e.respuesta })),
+          avance: avanceResumido,
+          historial,
+          pregunta: limpio,
+        }),
+      });
+      if (!r.ok) {
+        const detalle = (await r.json().catch(() => null)) as { mensaje?: string } | null;
+        throw new Error(detalle?.mensaje ?? `HTTP ${r.status}`);
+      }
+      const { respuesta } = (await r.json()) as { respuesta: string };
+      setMensajes((m) => [...m, { de: 'q', titulo: `Q · sobre ${casoActivo.empresa.nombre}`, texto: respuesta }]);
+    } catch (err) {
+      // Sin IA, Q sigue respondiendo con el manual del caso: la clase no se
+      // detiene porque se caiga la red o se agote la cuota.
+      const encontrada = buscarRespuesta(limpio);
+      const motivo = err instanceof Error ? err.message : String(err);
+      setMensajes((m) => [
+        ...m,
+        encontrada
+          ? { de: 'q', titulo: `${encontrada.titulo} · del manual`, texto: encontrada.respuesta, repregunta: encontrada.repregunta }
+          : {
+              de: 'q',
+              titulo: 'Sin conexión con la IA',
+              texto: `No pude consultar a la IA (${motivo}) y esta pregunta no está en el manual del caso.\n\nPrueba con los botones de análisis: esos funcionan sin conexión y trabajan sobre lo que tú cargaste.`,
+              repregunta: '¿Qué decisión estás tratando de tomar? Con eso puedo orientarte mejor.',
+            },
+      ]);
+    } finally {
+      setPensando(false);
+    }
   };
 
   return (
@@ -202,7 +264,7 @@ export default function Coach() {
       <EncabezadoPagina
         eyebrow="Quality Coach"
         titulo="Pregúntale a Q"
-        intro="Q no inventa respuestas: aplica el criterio del módulo y calcula sobre los datos que tú cargaste. Cuando algo no está en su manual, lo dice."
+        intro={`Q conoce el caso de ${casoActivo.empresa.nombre} y lo que tú llevas trabajado. Aplica el criterio del módulo y calcula sobre tus propios datos; cuando un número no está en el caso, lo dice en vez de inventarlo.`}
         icono={Bot}
       />
 
@@ -248,19 +310,30 @@ export default function Coach() {
                 </motion.div>
               ))}
             </AnimatePresence>
+            {pensando ? (
+              <div className="flex gap-2.5" data-testid="coach-pensando">
+                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]">
+                  <Bot size={16} />
+                </div>
+                <div className="rounded-2xl bg-[hsl(var(--muted)/.6)] px-3.5 py-2.5 text-xs text-[hsl(var(--muted-foreground))]">
+                  Q esta pensando...
+                </div>
+              </div>
+            ) : null}
             <div ref={finRef} />
           </div>
 
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              responder(entrada);
+              void responder(entrada);
             }}
             className="mt-4 flex gap-2"
           >
             <input
               value={entrada}
               data-testid="input-coach"
+              disabled={pensando}
               onChange={(e) => setEntrada(e.target.value)}
               placeholder="¿Qué gráfico uso para priorizar causas?"
               className="min-w-0 flex-1 rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.6)] px-3.5 py-2.5 text-xs outline-none focus:border-[hsl(var(--primary))]"
@@ -268,6 +341,7 @@ export default function Coach() {
             <button
               type="submit"
               data-testid="boton-enviar-coach"
+              disabled={pensando}
               className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-xl bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] transition hover:brightness-110"
               aria-label="Enviar"
             >
@@ -277,7 +351,7 @@ export default function Coach() {
 
           <div className="mt-3 flex flex-wrap gap-1.5">
             {preguntasSugeridas.map((p) => (
-              <Chip key={p} onClick={() => responder(p)}>
+              <Chip key={p} onClick={() => void responder(p)}>
                 {p}
               </Chip>
             ))}
@@ -304,9 +378,12 @@ export default function Coach() {
 
           <Panel titulo="Cómo funciona Q" delay={0.1}>
             <p className="text-[11px] leading-5 text-[hsl(var(--muted-foreground))]">
-              Q no es un modelo generativo: es un sistema de reglas que reconoce la intención de tu pregunta y responde
-              con el criterio del módulo, más los cálculos hechos sobre los datos del caso y tu propio avance. Funciona
-              sin conexión y da siempre la misma respuesta a la misma pregunta — que es lo que se necesita en un aula.
+              Q responde con el manual del módulo y los indicadores reales de {casoActivo.empresa.nombre}, más lo que
+              tú llevas cargado en la plataforma. No inventa cifras: si un dato no está en el caso, lo dice.
+              <br />
+              <br />
+              Los botones de análisis no usan IA: son cálculos deterministas sobre tus datos, dan siempre el mismo
+              resultado y funcionan sin conexión. Si la IA falla, Q responde con el manual del caso.
             </p>
           </Panel>
         </div>
