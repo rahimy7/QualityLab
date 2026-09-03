@@ -29,7 +29,7 @@ interface ResumenGrupo {
 
 interface AvanceParticipante {
   casoId: string;
-  dispositivoId: string;
+  usuarioId: string;
   nombre: string;
   contenido: Record<string, unknown>;
   actualizadoEn: string;
@@ -39,7 +39,7 @@ interface AvanceParticipante {
 interface AvanceLigero {
   grupoId: string;
   casoId: string;
-  dispositivoId: string;
+  usuarioId: string;
   nombre: string;
   misiones: string[];
   quiz: Record<string, string>;
@@ -243,8 +243,8 @@ export default function Grupos() {
             <div className="text-[12px] text-red-400">{error}</div>
           ) : avances.length === 0 ? (
             <div className="text-[12px] text-[hsl(var(--muted-foreground))]">
-              Aún no hay avances registrados para este grupo{filtroCaso ? ' en este caso' : ''}. El participante debe
-              activar "Guardar en la nube" desde el Inicio.
+              Nadie de este grupo ha guardado avance todavía{filtroCaso ? ' en este caso' : ''}. Aparecerán aquí en
+              cuanto empiecen a trabajar: el respaldo es automático.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -265,12 +265,9 @@ export default function Grupos() {
                     const caso = casoInfo.get(a.casoId);
                     const nMisionesCaso = caso?.misiones.length ?? 0;
                     return (
-                      <tr key={`${a.casoId}-${a.dispositivoId}`}>
+                      <tr key={`${a.casoId}-${a.usuarioId}`}>
                         <td className="p-2">
                           <div className="font-semibold">{a.nombre.trim() || '—'}</div>
-                          <div className="ql-mono text-[10px] text-[hsl(var(--muted-foreground))]">
-                            {a.dispositivoId.slice(0, 8)}
-                          </div>
                         </td>
                         <td className="p-2">
                           {caso ? `${caso.emoji} ${caso.nombreCorto}` : a.casoId}
@@ -347,7 +344,7 @@ export default function Grupos() {
                   {g.iniciales}
                 </div>
                 <div className="text-[10px] text-[hsl(var(--muted-foreground))]">
-                  {plural(g.participantes, 'participante')}
+                  {plural(g.participantes, 'inscrito')}
                 </div>
               </div>
               <div className="ql-display mt-1 text-lg font-bold">{g.nombre}</div>

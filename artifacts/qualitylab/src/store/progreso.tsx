@@ -1,9 +1,10 @@
 /**
  * Estado del participante.
  *
- * Todo el avance vive en el navegador (localStorage): la plataforma funciona
- * sin cuenta ni servidor, que es lo que permite entrar con un QR y empezar a
- * trabajar en el primer minuto de clase.
+ * localStorage es la copia rápida y la red de seguridad sin conexión; la copia
+ * buena vive en el servidor, contra la cuenta. Por eso al montar se acepta un
+ * estado inicial traído del servidor, que manda sobre lo guardado en el
+ * navegador: es lo que permite seguir en otro dispositivo.
  */
 import {
   createContext,
@@ -22,13 +23,13 @@ import type { Clasificacion } from '@/data/auditoria';
 import type { EmeId } from '@/data/caso';
 
 /**
- * La clave de storage cuelga del caso activo: cada caso guarda su propio
- * avance y cambiar de caso conserva lo trabajado en el otro. El prefijo v1 se
- * mantiene para no romper el avance existente del caso Andina.
+ * La clave de storage cuelga del caso y de la cuenta: cambiar de caso conserva
+ * lo trabajado en el otro, y dos personas que comparten un teléfono —cosa
+ * corriente en un aula— no se pisan el avance.
  */
-const CLAVE = casoActivoId === 'andina'
-  ? 'qualitylab360.v1'
-  : `qualitylab360.v1.${casoActivoId}`;
+function claveDe(usuarioId: string): string {
+  return `qualitylab360.v2.${casoActivoId}.${usuarioId}`;
+}
 
 export interface FichaKpi {
   objetivo: string;
@@ -161,10 +162,13 @@ export function fusionarEstado(guardado: Partial<EstadoApp>): EstadoApp {
   };
 }
 
-function cargar(): EstadoApp {
+function cargar(clave: string, delServidor?: Partial<EstadoApp> | null): EstadoApp {
+  // Lo que venga del servidor gana: es lo que hace que la cuenta sirva de algo
+  // al entrar desde un aparato nuevo, donde el localStorage está vacío.
+  if (delServidor) return fusionarEstado(delServidor);
   if (typeof window === 'undefined') return estadoInicial;
   try {
-    const raw = window.localStorage.getItem(CLAVE);
+    const raw = window.localStorage.getItem(clave);
     if (!raw) return estadoInicial;
     return fusionarEstado(JSON.parse(raw) as Partial<EstadoApp>);
   } catch {
@@ -196,16 +200,35 @@ interface Contexto {
 
 const ProgresoContext = createContext<Contexto | null>(null);
 
-export function ProgresoProvider({ children }: { children: ReactNode }) {
-  const [estado, setEstado] = useState<EstadoApp>(cargar);
+export function ProgresoProvider({
+  children,
+  usuario,
+  inicial,
+}: {
+  children: ReactNode;
+  usuario: { id: string; nombre: string; grupoId: string };
+  inicial?: Partial<EstadoApp> | null;
+}) {
+  const clave = claveDe(usuario.id);
+  const [estado, setEstado] = useState<EstadoApp>(() => cargar(clave, inicial));
+
+  // El perfil es un reflejo de la cuenta, no un campo que se edite aquí: el
+  // nombre y el equipo se cambian en el perfil y bajan a todas las pantallas.
+  useEffect(() => {
+    setEstado((prev) =>
+      prev.perfil.nombre === usuario.nombre && prev.perfil.equipoId === usuario.grupoId
+        ? prev
+        : { ...prev, perfil: { nombre: usuario.nombre, equipoId: usuario.grupoId } },
+    );
+  }, [usuario.nombre, usuario.grupoId]);
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(CLAVE, JSON.stringify(estado));
+      window.localStorage.setItem(clave, JSON.stringify(estado));
     } catch {
       // Modo privado o almacenamiento lleno: la sesión sigue funcionando en memoria.
     }
-  }, [estado]);
+  }, [clave, estado]);
 
   const set = useCallback((parcial: Actualizacion) => {
     setEstado((prev) => ({ ...prev, ...(typeof parcial === 'function' ? parcial(prev) : parcial) }));

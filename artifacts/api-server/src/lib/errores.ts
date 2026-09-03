@@ -26,6 +26,16 @@ export function asyncHandler(
   };
 }
 
+function esErrorDeZod(err: unknown): err is ZodError {
+  if (err instanceof ZodError) return true;
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    (err as { name?: string }).name === 'ZodError' &&
+    Array.isArray((err as { issues?: unknown }).issues)
+  );
+}
+
 export function manejadorErrores(
   err: unknown,
   _req: Request,
@@ -37,7 +47,10 @@ export function manejadorErrores(
     return;
   }
 
-  if (err instanceof ZodError) {
+  // Se comprueba la forma y no solo `instanceof`: `zod` y `zod/v4` son módulos
+  // distintos en tiempo de ejecución, así que un error lanzado desde el otro
+  // punto de entrada no pasaría la prueba de identidad y acabaría como un 500.
+  if (esErrorDeZod(err)) {
     const detalle = err.issues
       .map((i) => `${i.path.join('.') || 'cuerpo'}: ${i.message}`)
       .join('; ');

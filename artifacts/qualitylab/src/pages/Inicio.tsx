@@ -10,8 +10,7 @@ import { useProgreso } from '@/store/progreso';
 import { descargar, pp } from '@/lib/formato';
 import { Boton, Campo, Contador, Panel, Semaforo } from '@/components/lab/primitivos';
 import { CoachQ } from '@/components/lab/CoachQ';
-import { PanelAula } from '@/components/lab/Aula';
-import { PanelGrupo } from '@/components/lab/PanelGrupo';
+import { PanelCuenta } from '@/components/lab/PanelCuenta';
 import { FuenteDeDatos } from '@/components/lab/FuenteDeDatos';
 import { EntrevistaEmpleado } from '@/components/lab/EntrevistaEmpleado';
 
@@ -245,9 +244,7 @@ export default function Inicio() {
         </div>
       </motion.section>
 
-      <PanelAula />
-
-      <PanelGrupo />
+      <PanelCuenta />
 
       <div className="grid gap-6 lg:grid-cols-[1.15fr_1fr]">
         <Panel

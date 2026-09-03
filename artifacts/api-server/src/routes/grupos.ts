@@ -1,13 +1,16 @@
 /**
- * Grupos predefinidos y avance individual etiquetado por grupo.
+ * Revisión por grupo para el facilitador.
  *
- * Cada participante trabaja su propia copia del caso (avance INDIVIDUAL); el
- * grupo es solo una etiqueta que permite al facilitador revisar el conjunto.
+ * Lee las cuentas y su avance: el grupo sale del perfil del usuario, así que
+ * alguien que cambia de equipo se lleva todo su trabajo consigo.
+ *
+ * Ojo: estas rutas no exigen sesión, a propósito, para que el facilitador pueda
+ * abrir la pantalla sin cuenta. Por eso NO devuelven el correo de nadie: sería
+ * exponer datos personales en un endpoint público.
  */
 import { Router, type IRouter } from 'express';
-import { and, desc, eq, sql } from 'drizzle-orm';
-import { z } from 'zod';
-import { db, grupos, esGrupoValido, gruposAvancesTable } from '@workspace/db';
+import { desc, eq, sql } from 'drizzle-orm';
+import { db, grupos, esGrupoValido, usuariosTable, avancesUsuarioTable } from '@workspace/db';
 import { asyncHandler, noEncontrado, ErrorHttp } from '../lib/errores';
 
 const router: IRouter = Router();
@@ -19,39 +22,45 @@ function entradaInvalida(mensaje: string): ErrorHttp {
 router.get(
   '/grupos',
   asyncHandler(async (_req, res) => {
-    // Dos agregados distintos: el total del grupo se cuenta sobre dispositivos
-    // DISTINTOS del grupo entero, no sumando los de cada caso — quien trabaja
-    // dos casos es un solo participante, aunque tenga dos filas.
-    const [porCasoStats, porGrupoStats] = await Promise.all([
+    // Inscritos y actividad son dos preguntas distintas: alguien puede haberse
+    // registrado en un equipo y no haber trabajado todavía, y el facilitador
+    // necesita ver justamente eso.
+    const [inscritos, porCasoStats] = await Promise.all([
       db
         .select({
-          grupoId: gruposAvancesTable.grupoId,
-          casoId: gruposAvancesTable.casoId,
-          participantes: sql<number>`count(distinct ${gruposAvancesTable.dispositivoId})`.mapWith(Number),
+          grupoId: usuariosTable.grupoId,
+          inscritos: sql<number>`count(*)`.mapWith(Number),
         })
-        .from(gruposAvancesTable)
-        .groupBy(gruposAvancesTable.grupoId, gruposAvancesTable.casoId),
+        .from(usuariosTable)
+        .groupBy(usuariosTable.grupoId),
       db
         .select({
-          grupoId: gruposAvancesTable.grupoId,
-          participantes: sql<number>`count(distinct ${gruposAvancesTable.dispositivoId})`.mapWith(Number),
-          actualizadoEn: sql<Date>`max(${gruposAvancesTable.actualizadoEn})`,
+          grupoId: usuariosTable.grupoId,
+          casoId: avancesUsuarioTable.casoId,
+          participantes: sql<number>`count(distinct ${avancesUsuarioTable.usuarioId})`.mapWith(Number),
+          actualizadoEn: sql<Date>`max(${avancesUsuarioTable.actualizadoEn})`,
         })
-        .from(gruposAvancesTable)
-        .groupBy(gruposAvancesTable.grupoId),
+        .from(avancesUsuarioTable)
+        .innerJoin(usuariosTable, eq(usuariosTable.id, avancesUsuarioTable.usuarioId))
+        .groupBy(usuariosTable.grupoId, avancesUsuarioTable.casoId),
     ]);
 
-    const porGrupo = new Map<string, { participantes: number; actividad: Date | null; porCaso: Record<string, number> }>();
+    const porGrupo = new Map<
+      string,
+      { participantes: number; actividad: Date | null; porCaso: Record<string, number> }
+    >();
     for (const g of grupos) porGrupo.set(g.id, { participantes: 0, actividad: null, porCaso: {} });
-    for (const s of porCasoStats) {
-      const entry = porGrupo.get(s.grupoId);
-      if (entry) entry.porCaso[s.casoId] = s.participantes;
+
+    for (const i of inscritos) {
+      const entrada = porGrupo.get(i.grupoId);
+      if (entrada) entrada.participantes = i.inscritos;
     }
-    for (const s of porGrupoStats) {
-      const entry = porGrupo.get(s.grupoId);
-      if (!entry) continue;
-      entry.participantes = s.participantes;
-      entry.actividad = s.actualizadoEn ? new Date(s.actualizadoEn) : null;
+    for (const s of porCasoStats) {
+      const entrada = porGrupo.get(s.grupoId);
+      if (!entrada) continue;
+      entrada.porCaso[s.casoId] = s.participantes;
+      const cuando = s.actualizadoEn ? new Date(s.actualizadoEn) : null;
+      if (cuando && (!entrada.actividad || cuando > entrada.actividad)) entrada.actividad = cuando;
     }
 
     res.json(
@@ -66,10 +75,9 @@ router.get(
 );
 
 /**
- * Proyección ligera de TODOS los grupos: solo los tres campos con los que se
- * calculan los Quality Points (misiones, quiz y logros). Evita bajar el estado
- * completo de cada participante para pintar la lista de grupos, que en un aula
- * de 30 personas serían cientos de KB de JSON que nadie mira.
+ * Proyección ligera de toda el aula: solo los tres campos con los que se
+ * calculan los Quality Points. Evita bajar el estado completo de cada
+ * participante para pintar la lista de grupos.
  */
 router.get(
   '/grupos/avances',
@@ -78,24 +86,25 @@ router.get(
 
     const filas = await db
       .select({
-        grupoId: gruposAvancesTable.grupoId,
-        casoId: gruposAvancesTable.casoId,
-        dispositivoId: gruposAvancesTable.dispositivoId,
-        nombre: gruposAvancesTable.nombre,
-        misiones: sql<unknown>`${gruposAvancesTable.contenido} -> 'misiones'`,
-        quiz: sql<unknown>`${gruposAvancesTable.contenido} -> 'quiz'`,
-        logros: sql<unknown>`${gruposAvancesTable.contenido} -> 'logros'`,
-        actualizadoEn: gruposAvancesTable.actualizadoEn,
+        grupoId: usuariosTable.grupoId,
+        casoId: avancesUsuarioTable.casoId,
+        usuarioId: avancesUsuarioTable.usuarioId,
+        nombre: usuariosTable.nombre,
+        misiones: sql<unknown>`${avancesUsuarioTable.contenido} -> 'misiones'`,
+        quiz: sql<unknown>`${avancesUsuarioTable.contenido} -> 'quiz'`,
+        logros: sql<unknown>`${avancesUsuarioTable.contenido} -> 'logros'`,
+        actualizadoEn: avancesUsuarioTable.actualizadoEn,
       })
-      .from(gruposAvancesTable)
-      .where(casoId ? eq(gruposAvancesTable.casoId, casoId) : undefined)
-      .orderBy(desc(gruposAvancesTable.actualizadoEn));
+      .from(avancesUsuarioTable)
+      .innerJoin(usuariosTable, eq(usuariosTable.id, avancesUsuarioTable.usuarioId))
+      .where(casoId ? eq(avancesUsuarioTable.casoId, casoId) : undefined)
+      .orderBy(desc(avancesUsuarioTable.actualizadoEn));
 
     res.json(
       filas.map((f) => ({
         grupoId: f.grupoId,
         casoId: f.casoId,
-        dispositivoId: f.dispositivoId,
+        usuarioId: f.usuarioId,
         nombre: f.nombre,
         misiones: Array.isArray(f.misiones) ? f.misiones : [],
         quiz: f.quiz && typeof f.quiz === 'object' && !Array.isArray(f.quiz) ? f.quiz : {},
@@ -106,82 +115,6 @@ router.get(
   }),
 );
 
-const esquemaGuardado = z.object({
-  casoId: z.string().min(1).max(60),
-  dispositivoId: z.string().min(1).max(120),
-  nombre: z.string().max(120).default(''),
-  contenido: z.record(z.string(), z.unknown()),
-});
-
-router.put(
-  '/grupos/:grupoId/avance',
-  asyncHandler(async (req, res) => {
-    const grupoId = String(req.params.grupoId);
-    if (!esGrupoValido(grupoId)) throw noEncontrado(`Grupo ${grupoId} no existe`);
-
-    const parse = esquemaGuardado.safeParse(req.body);
-    if (!parse.success) throw entradaInvalida(`cuerpo-invalido: ${parse.error.message}`);
-    const cuerpo = parse.data;
-
-    const [guardado] = await db
-      .insert(gruposAvancesTable)
-      .values({
-        grupoId,
-        casoId: cuerpo.casoId,
-        dispositivoId: cuerpo.dispositivoId,
-        nombre: cuerpo.nombre,
-        contenido: cuerpo.contenido,
-      })
-      .onConflictDoUpdate({
-        target: [gruposAvancesTable.grupoId, gruposAvancesTable.casoId, gruposAvancesTable.dispositivoId],
-        set: {
-          nombre: cuerpo.nombre,
-          contenido: cuerpo.contenido,
-          actualizadoEn: sql`now()`,
-        },
-      })
-      .returning({ actualizadoEn: gruposAvancesTable.actualizadoEn });
-
-    res.json({ ok: true, actualizadoEn: guardado.actualizadoEn.toISOString() });
-  }),
-);
-
-router.get(
-  '/grupos/:grupoId/avance',
-  asyncHandler(async (req, res) => {
-    const grupoId = String(req.params.grupoId);
-    if (!esGrupoValido(grupoId)) throw noEncontrado(`Grupo ${grupoId} no existe`);
-    const casoId = String(req.query.casoId ?? '').trim();
-    const dispositivoId = String(req.query.dispositivoId ?? '').trim();
-    if (!casoId || !dispositivoId) throw entradaInvalida('casoId y dispositivoId son obligatorios');
-
-    const [row] = await db
-      .select()
-      .from(gruposAvancesTable)
-      .where(
-        and(
-          eq(gruposAvancesTable.grupoId, grupoId),
-          eq(gruposAvancesTable.casoId, casoId),
-          eq(gruposAvancesTable.dispositivoId, dispositivoId),
-        ),
-      )
-      .limit(1);
-
-    if (!row) {
-      res.status(204).send();
-      return;
-    }
-    res.json({
-      grupoId: row.grupoId,
-      casoId: row.casoId,
-      dispositivoId: row.dispositivoId,
-      nombre: row.nombre,
-      contenido: row.contenido,
-      actualizadoEn: row.actualizadoEn.toISOString(),
-    });
-  }),
-);
-
 router.get(
   '/grupos/:grupoId/avances',
   asyncHandler(async (req, res) => {
@@ -189,26 +122,27 @@ router.get(
     if (!esGrupoValido(grupoId)) throw noEncontrado(`Grupo ${grupoId} no existe`);
     const casoId = req.query.casoId ? String(req.query.casoId).trim() : null;
 
-    const filtros = casoId
-      ? and(eq(gruposAvancesTable.grupoId, grupoId), eq(gruposAvancesTable.casoId, casoId))
-      : eq(gruposAvancesTable.grupoId, grupoId);
-
     const filas = await db
       .select({
-        casoId: gruposAvancesTable.casoId,
-        dispositivoId: gruposAvancesTable.dispositivoId,
-        nombre: gruposAvancesTable.nombre,
-        contenido: gruposAvancesTable.contenido,
-        actualizadoEn: gruposAvancesTable.actualizadoEn,
+        casoId: avancesUsuarioTable.casoId,
+        usuarioId: avancesUsuarioTable.usuarioId,
+        nombre: usuariosTable.nombre,
+        contenido: avancesUsuarioTable.contenido,
+        actualizadoEn: avancesUsuarioTable.actualizadoEn,
       })
-      .from(gruposAvancesTable)
-      .where(filtros)
-      .orderBy(desc(gruposAvancesTable.actualizadoEn));
+      .from(avancesUsuarioTable)
+      .innerJoin(usuariosTable, eq(usuariosTable.id, avancesUsuarioTable.usuarioId))
+      .where(
+        casoId
+          ? sql`${usuariosTable.grupoId} = ${grupoId} and ${avancesUsuarioTable.casoId} = ${casoId}`
+          : eq(usuariosTable.grupoId, grupoId),
+      )
+      .orderBy(desc(avancesUsuarioTable.actualizadoEn));
 
     res.json(
       filas.map((f) => ({
         casoId: f.casoId,
-        dispositivoId: f.dispositivoId,
+        usuarioId: f.usuarioId,
         nombre: f.nombre,
         contenido: f.contenido,
         actualizadoEn: f.actualizadoEn.toISOString(),
@@ -217,4 +151,22 @@ router.get(
   }),
 );
 
+/** Miembros del grupo, hayan trabajado o no. */
+router.get(
+  '/grupos/:grupoId/miembros',
+  asyncHandler(async (req, res) => {
+    const grupoId = String(req.params.grupoId);
+    if (!esGrupoValido(grupoId)) throw noEncontrado(`Grupo ${grupoId} no existe`);
+
+    const filas = await db
+      .select({ id: usuariosTable.id, nombre: usuariosTable.nombre, creadoEn: usuariosTable.creadoEn })
+      .from(usuariosTable)
+      .where(eq(usuariosTable.grupoId, grupoId))
+      .orderBy(usuariosTable.nombre);
+
+    res.json(filas.map((f) => ({ ...f, creadoEn: f.creadoEn.toISOString() })));
+  }),
+);
+
+export { entradaInvalida };
 export default router;

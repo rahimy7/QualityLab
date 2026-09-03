@@ -2,12 +2,13 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bot, Menu, Moon, RotateCcw, Sun, Trophy, X } from 'lucide-react';
+import { Bot, LogOut, Menu, Moon, RotateCcw, Sun, Trophy, X } from 'lucide-react';
 import { labs, misiones, puntosPosibles } from '@/data/misiones';
 import { equipos } from '@/data/equipos';
 import { useProgreso } from '@/store/progreso';
+import { useAuth } from '@/store/auth';
 import { useTema } from '@/lib/tema';
-import { ChipConexion, DialogoConflicto } from '@/components/lab/Aula';
+import { ChipSincro } from '@/components/lab/ChipSincro';
 import { cn } from '@/lib/utils';
 
 const grupos = ['Ruta', 'Laboratorios', 'Resultados', 'Facilitación'] as const;
@@ -99,7 +100,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [abierto, setAbierto] = useState(false);
   const [ruta] = useLocation();
   const { tema, alternar } = useTema();
-  const { estado, set, puntos, reiniciar } = useProgreso();
+  const { puntos, reiniciar } = useProgreso();
+  const { usuario, salir } = useAuth();
+  const equipoActual = equipos.find((e) => e.id === usuario?.grupoId);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -133,24 +136,22 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
 
           <div className="ml-auto flex items-center gap-2">
-            <select
-              data-testid="selector-equipo"
-              value={estado.perfil.equipoId}
-              onChange={(e) => set({ perfil: { ...estado.perfil, equipoId: e.target.value } })}
-              className="hidden rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2.5 py-1.5 text-[11px] font-semibold outline-none sm:block"
+            <span
+              className="hidden rounded-lg border border-[hsl(var(--border))] px-2.5 py-1.5 text-[11px] font-semibold sm:block"
+              title={`${usuario?.email ?? ''} · ${equipoActual?.nombre ?? ''}`}
+              data-testid="chip-cuenta"
             >
-              {equipos.map((eq) => (
-                <option key={eq.id} value={eq.id}>
-                  {eq.nombre}
-                </option>
-              ))}
-            </select>
+              {usuario?.nombre ?? '—'}
+              <span className="ql-mono ml-1.5 text-[10px] font-normal text-[hsl(var(--muted-foreground))]">
+                {equipoActual?.iniciales ?? ''}
+              </span>
+            </span>
 
             <span className="ql-mono rounded-lg bg-[hsl(var(--accent)/.28)] px-2.5 py-1.5 text-[11px] font-bold">
               {puntos.total} QP
             </span>
 
-            <ChipConexion />
+            <ChipSincro />
 
             <Link
               href="/coach"
@@ -170,6 +171,17 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               {tema === 'claro' ? <Moon size={17} /> : <Sun size={17} />}
             </button>
+
+            <button
+              type="button"
+              data-testid="boton-salir"
+              onClick={() => void salir()}
+              className="rounded-lg p-2 text-[hsl(var(--muted-foreground))] transition hover:text-[hsl(var(--foreground))]"
+              aria-label="Cerrar sesión"
+              title="Cerrar sesión"
+            >
+              <LogOut size={17} />
+            </button>
           </div>
         </div>
       </header>
@@ -183,7 +195,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               type="button"
               data-testid="boton-reiniciar"
               onClick={() => {
-                if (window.confirm('Se borrará tu avance del módulo en este dispositivo. ¿Continuar?')) reiniciar();
+                if (window.confirm('Se borrará tu avance del módulo, también en el servidor. ¿Continuar?')) reiniciar();
               }}
               className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-[11px] font-semibold text-[hsl(var(--muted-foreground))] transition hover:text-[#d1523f]"
             >
@@ -194,8 +206,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <main className="min-w-0 flex-1 pb-16">{children}</main>
       </div>
-
-      <DialogoConflicto />
 
       <AnimatePresence>
         {abierto ? (

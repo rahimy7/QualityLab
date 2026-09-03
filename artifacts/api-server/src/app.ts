@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import path from "node:path";
 import { existsSync } from "node:fs";
@@ -29,6 +30,8 @@ app.use(
   }),
 );
 app.use(cors());
+// Las sesiones de cuenta viajan en una cookie httpOnly.
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

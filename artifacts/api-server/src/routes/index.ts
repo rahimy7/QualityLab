@@ -1,7 +1,7 @@
 import { Router, type IRouter } from 'express';
 import healthRouter from './health';
-import sesionesRouter from './sesiones';
-import avanceRouter from './avance';
+import authRouter from './auth';
+import miAvanceRouter from './miAvance';
 import entrevistaRouter from './entrevista';
 import casosRouter from './casos';
 import gruposRouter from './grupos';
@@ -9,8 +9,8 @@ import gruposRouter from './grupos';
 const router: IRouter = Router();
 
 router.use(healthRouter);
-router.use(sesionesRouter);
-router.use(avanceRouter);
+router.use(authRouter);
+router.use(miAvanceRouter);
 router.use(entrevistaRouter);
 router.use(casosRouter);
 router.use(gruposRouter);

@@ -6,7 +6,7 @@ import { casosLista } from '@/data/casos';
 import { logros, misiones, puntosPosibles } from '@/data/misiones';
 import { preguntas } from '@/data/quizzes';
 import { useProgreso } from '@/store/progreso';
-import { idDispositivo } from '@/lib/dispositivo';
+import { useAuth } from '@/store/auth';
 import { plural } from '@/lib/formato';
 import { calcularPuntos, puntajeVacio, sumar, type Puntaje } from '@/lib/puntos';
 import { tonoColor } from '@/lib/palette';
@@ -16,7 +16,7 @@ import { EncabezadoPagina, Panel, Tile } from '@/components/lab/primitivos';
 interface AvanceAula {
   grupoId: string;
   casoId: string;
-  dispositivoId: string;
+  usuarioId: string;
   misiones: string[];
   quiz: Record<string, string>;
   logros: string[];
@@ -24,6 +24,7 @@ interface AvanceAula {
 
 export default function Ranking() {
   const { estado, puntos } = useProgreso();
+  const { usuario } = useAuth();
   const [aula, setAula] = useState<AvanceAula[] | null>(null);
   const [errorAula, setErrorAula] = useState<string | null>(null);
 
@@ -47,20 +48,20 @@ export default function Ranking() {
 
   const tabla = useMemo(() => {
     const propio = estado.perfil.equipoId;
-    const mio = idDispositivo();
+    const mio = usuario?.id;
     const acumulado = new Map<string, Puntaje>();
     const dispositivos = new Map<string, Set<string>>();
 
     for (const fila of aula ?? []) {
       // Mi propia fila se ignora: mi avance entra desde el estado local, que va
       // por delante de lo último que alcanzó a sincronizar. Así cuento una vez.
-      if (fila.dispositivoId === mio) continue;
+      if (fila.usuarioId === mio) continue;
       acumulado.set(
         fila.grupoId,
         sumar(acumulado.get(fila.grupoId) ?? puntajeVacio, calcularPuntos(fila, casoInfo.get(fila.casoId))),
       );
       const gente = dispositivos.get(fila.grupoId) ?? new Set<string>();
-      gente.add(fila.dispositivoId);
+      gente.add(fila.usuarioId);
       dispositivos.set(fila.grupoId, gente);
     }
 
@@ -75,7 +76,7 @@ export default function Ranking() {
         };
       })
       .sort((a, b) => b.total - a.total);
-  }, [aula, casoInfo, estado.perfil.equipoId, puntos.total]);
+  }, [aula, casoInfo, estado.perfil.equipoId, puntos.total, usuario?.id]);
 
   return (
     <div className="space-y-6">

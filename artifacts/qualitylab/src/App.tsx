@@ -1,14 +1,16 @@
-import { lazy, Suspense, type ComponentType } from 'react';
+import { lazy, Suspense, useEffect, useState, type ComponentType } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Route, Switch } from 'wouter';
+import { Route, Switch, useLocation } from 'wouter';
 import { MotionConfig } from 'framer-motion';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { esErrorDeModulo, recuperarDeVersionVieja } from '@/lib/pwa';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { ProgresoProvider } from '@/store/progreso';
-import { NubeProvider } from '@/store/nube';
-import { SincroGrupoProvider } from '@/store/sincroGrupo';
+import { ProgresoProvider, type EstadoApp } from '@/store/progreso';
+import { SincroUsuarioProvider } from '@/store/sincroUsuario';
+import { AuthProvider, useAuth, type Usuario } from '@/store/auth';
+import { PantallaAcceso } from '@/components/acceso/PantallaAcceso';
+import { casoActivoId } from '@/data/casos';
 import { AppShell } from '@/components/shell/AppShell';
 import Inicio from '@/pages/Inicio';
 
@@ -74,53 +76,105 @@ function Cargando() {
   );
 }
 
+/**
+ * Carga el avance de la cuenta antes de montar la app.
+ *
+ * Sin esta espera, el participante vería un instante su avance local (o vacío)
+ * y luego un salto cuando llegara el del servidor; peor aún, ese estado
+ * intermedio se sincronizaría de vuelta y pisaría lo bueno.
+ */
+function SesionDeTrabajo({ usuario }: { usuario: Usuario }) {
+  const [inicial, setInicial] = useState<Partial<EstadoApp> | null | undefined>(undefined);
+
+  useEffect(() => {
+    let vivo = true;
+    fetch(`/api/mi-avance?casoId=${encodeURIComponent(casoActivoId)}`)
+      .then(async (r) => (r.status === 204 || !r.ok ? null : ((await r.json()) as { contenido: Partial<EstadoApp> })))
+      .then((d) => {
+        if (vivo) setInicial(d?.contenido ?? null);
+      })
+      .catch(() => {
+        // Sin red se arranca con lo que haya en el navegador y se sube después.
+        if (vivo) setInicial(null);
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [usuario.id]);
+
+  if (inicial === undefined) return <Cargando />;
+
+  return (
+    <ProgresoProvider usuario={{ id: usuario.id, nombre: usuario.nombre, grupoId: usuario.grupoId }} inicial={inicial}>
+      <SincroUsuarioProvider>
+        <AppShell>
+          <ErrorBoundary>
+            <Suspense fallback={<Cargando />}>
+              <Switch>
+                <Route path="/" component={Inicio} />
+                <Route path="/curso" component={Curso} />
+                <Route path="/misiones" component={Misiones} />
+                <Route path="/diagnostico" component={Diagnostico} />
+                <Route path="/kpi-lab" component={KpiLab} />
+                <Route path="/pareto-lab" component={ParetoLab} />
+                <Route path="/ishikawa" component={Ishikawa} />
+                <Route path="/cinco-porques" component={CincoPorques} />
+                <Route path="/hoshin" component={Hoshin} />
+                <Route path="/estadistica" component={Estadistica} />
+                <Route path="/mejora" component={Mejora} />
+                <Route path="/auditoria" component={Auditoria} />
+                <Route path="/simulador" component={Simulador} />
+                <Route path="/dashboard" component={Dashboard} />
+                <Route path="/coach" component={Coach} />
+                <Route path="/proyecto" component={Proyecto} />
+                <Route path="/ranking" component={Ranking} />
+                <Route path="/certificado" component={Certificado} />
+                <Route path="/profesor" component={Profesor} />
+                <Route path="/datos" component={Datos} />
+                <Route component={NotFound} />
+              </Switch>
+            </Suspense>
+          </ErrorBoundary>
+        </AppShell>
+      </SincroUsuarioProvider>
+    </ProgresoProvider>
+  );
+}
+
+/**
+ * Muro de acceso. La revisión por grupo queda fuera a propósito: es la pantalla
+ * del facilitador, que la abre para proyectarla sin tener cuenta de aula.
+ */
+function Puerta() {
+  const { usuario, comprobando } = useAuth();
+  const [ruta] = useLocation();
+
+  if (ruta === '/grupos') {
+    return (
+      <div className="mx-auto max-w-6xl p-4 sm:p-8">
+        <ErrorBoundary>
+          <Suspense fallback={<Cargando />}>
+            <Grupos />
+          </Suspense>
+        </ErrorBoundary>
+      </div>
+    );
+  }
+
+  if (comprobando) return <Cargando />;
+  if (!usuario) return <PantallaAcceso />;
+  return <SesionDeTrabajo usuario={usuario} />;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <MotionConfig reducedMotion="user">
         <TooltipProvider>
-          {/* NubeProvider va dentro de ProgresoProvider: la sincronización lee
-              el avance local y puede reemplazarlo al restaurar desde la clase. */}
-          <ProgresoProvider>
-            <NubeProvider>
-              {/* El auto-guardado por grupo se monta en la raíz para que siga
-                  enviando mientras el participante trabaja en los laboratorios,
-                  no solo mientras mira el panel de Inicio. */}
-              <SincroGrupoProvider>
-                <AppShell>
-                  <ErrorBoundary>
-                    <Suspense fallback={<Cargando />}>
-                      <Switch>
-                        <Route path="/" component={Inicio} />
-                        <Route path="/curso" component={Curso} />
-                        <Route path="/misiones" component={Misiones} />
-                        <Route path="/diagnostico" component={Diagnostico} />
-                        <Route path="/kpi-lab" component={KpiLab} />
-                        <Route path="/pareto-lab" component={ParetoLab} />
-                        <Route path="/ishikawa" component={Ishikawa} />
-                        <Route path="/cinco-porques" component={CincoPorques} />
-                        <Route path="/hoshin" component={Hoshin} />
-                        <Route path="/estadistica" component={Estadistica} />
-                        <Route path="/mejora" component={Mejora} />
-                        <Route path="/auditoria" component={Auditoria} />
-                        <Route path="/simulador" component={Simulador} />
-                        <Route path="/dashboard" component={Dashboard} />
-                        <Route path="/coach" component={Coach} />
-                        <Route path="/proyecto" component={Proyecto} />
-                        <Route path="/ranking" component={Ranking} />
-                        <Route path="/certificado" component={Certificado} />
-                        <Route path="/profesor" component={Profesor} />
-                        <Route path="/datos" component={Datos} />
-                        <Route path="/grupos" component={Grupos} />
-                        <Route component={NotFound} />
-                      </Switch>
-                    </Suspense>
-                  </ErrorBoundary>
-                </AppShell>
-              </SincroGrupoProvider>
-              <Toaster />
-            </NubeProvider>
-          </ProgresoProvider>
+          <AuthProvider>
+            <Puerta />
+          </AuthProvider>
+          <Toaster />
         </TooltipProvider>
       </MotionConfig>
     </QueryClientProvider>

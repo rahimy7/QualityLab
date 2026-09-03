@@ -6,3 +6,5 @@ export * from './avances';
 export * from './respuestas';
 export * from './casos';
 export * from './gruposAvances';
+export * from './usuarios';
+export * from './avancesUsuario';

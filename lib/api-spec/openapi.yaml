@@ -10,10 +10,6 @@ servers:
 tags:
   - name: health
     description: Health operations
-  - name: sesiones
-    description: Sesiones de clase y participantes
-  - name: avance
-    description: Avance y resultados de cada participante
 paths:
   /healthz:
     get:
@@ -28,133 +24,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
-
-  /sesiones:
-    post:
-      operationId: crearSesion
-      tags: [sesiones]
-      summary: Crear una sesión de clase
-      description: El facilitador crea la sesión y obtiene el código que comparte con el aula.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CrearSesion"
-      responses:
-        "201":
-          description: Sesión creada
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Sesion"
-        "400":
-          $ref: "#/components/responses/SolicitudInvalida"
-
-  /sesiones/{codigo}:
-    get:
-      operationId: obtenerSesion
-      tags: [sesiones]
-      summary: Consultar una sesión por su código
-      parameters:
-        - $ref: "#/components/parameters/Codigo"
-      responses:
-        "200":
-          description: Sesión encontrada
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Sesion"
-        "404":
-          $ref: "#/components/responses/NoEncontrado"
-
-  /sesiones/{codigo}/participantes:
-    post:
-      operationId: unirseSesion
-      tags: [sesiones]
-      summary: Unirse a una sesión o recuperar el avance previo
-      description: >-
-        Si el dispositivo ya se había unido, devuelve el mismo participante con
-        su avance guardado. Si el nombre coincide con alguien de la sesión desde
-        otro dispositivo, reasigna ese participante al nuevo aparato.
-      parameters:
-        - $ref: "#/components/parameters/Codigo"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Unirse"
-      responses:
-        "200":
-          description: Participante inscrito
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Inscripcion"
-        "400":
-          $ref: "#/components/responses/SolicitudInvalida"
-        "404":
-          $ref: "#/components/responses/NoEncontrado"
-
-  /sesiones/{codigo}/tablero:
-    get:
-      operationId: obtenerTablero
-      tags: [sesiones]
-      summary: Tablero en vivo del facilitador
-      description: Avance de cada participante y desempeño del aula pregunta por pregunta.
-      parameters:
-        - $ref: "#/components/parameters/Codigo"
-      responses:
-        "200":
-          description: Tablero de la sesión
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Tablero"
-        "404":
-          $ref: "#/components/responses/NoEncontrado"
-
-  /participantes/{participanteId}/avance:
-    get:
-      operationId: obtenerAvance
-      tags: [avance]
-      summary: Leer el avance guardado de un participante
-      parameters:
-        - $ref: "#/components/parameters/ParticipanteId"
-      responses:
-        "200":
-          description: Avance del participante
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Avance"
-        "404":
-          $ref: "#/components/responses/NoEncontrado"
-    put:
-      operationId: guardarAvance
-      tags: [avance]
-      summary: Guardar el avance de un participante
-      description: Reemplaza la instantánea del participante y registra las respuestas nuevas.
-      parameters:
-        - $ref: "#/components/parameters/ParticipanteId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/GuardarAvance"
-      responses:
-        "200":
-          description: Avance guardado
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Avance"
-        "400":
-          $ref: "#/components/responses/SolicitudInvalida"
-        "404":
-          $ref: "#/components/responses/NoEncontrado"
 
 components:
   parameters:
@@ -340,6 +209,13 @@ components:
           type: object
           additionalProperties: true
           description: Estado completo del cliente, para restaurarlo en otro dispositivo.
+        casoId:
+          type: string
+          maxLength: 60
+          description: >-
+            Caso sobre el que trabaja el participante. Permite que el avance de
+            la sesión se refleje también en la revisión por grupo del
+            facilitador. Opcional para no romper clientes anteriores.
       required:
         - puntos
         - misiones

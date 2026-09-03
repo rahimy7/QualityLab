@@ -11,7 +11,6 @@ import { capability, compareBeforeAfter, controlLimits, countBy, mean, nelsonRul
 import { num, pct, valorP } from '@/lib/formato';
 import { tonoColor } from '@/lib/palette';
 import { Chip, EncabezadoPagina, Panel } from '@/components/lab/primitivos';
-import { TableroAula } from '@/components/lab/TableroAula';
 
 interface BloqueAgenda {
   bloque: string;
@@ -91,7 +90,6 @@ export default function Profesor() {
         icono={Users}
       />
 
-      <TableroAula />
 
       <Panel
         titulo="Agenda"

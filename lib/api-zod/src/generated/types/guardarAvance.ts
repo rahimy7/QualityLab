@@ -16,4 +16,9 @@ export interface GuardarAvance {
   respuestas: RespuestaEjercicio[];
   /** Estado completo del cliente, para restaurarlo en otro dispositivo. */
   estado: GuardarAvanceEstado;
+  /**
+     * Caso sobre el que trabaja el participante. Permite que el avance de la sesión se refleje también en la revisión por grupo del facilitador. Opcional para no romper clientes anteriores.
+     * @maxLength 60
+     */
+  casoId?: string;
 }
